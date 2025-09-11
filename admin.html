@@ -1,0 +1,57 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Site Admin</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container" style="max-width:720px; padding:24px 16px">
+    <h1 style="font-size:28px;font-weight:900;margin-bottom:16px">Site Admin</h1>
+    <p style="color:#475569">Update the site name, tagline, colors, and logo. Changes are saved in your browser for preview. For permanent edits, change <code>logo.svg</code> and update <code>index.html</code> text before hosting.</p>
+    <div style="display:grid;gap:12px">
+      <label>Name <input id="name" class="input"></label>
+      <label>Tagline <input id="tagline" class="input"></label>
+      <label>Primary Color <input id="primary" class="input" type="color"></label>
+      <label>Secondary Color <input id="secondary" class="input" type="color"></label>
+      <label>Logo <input id="logo" type="file" accept="image/*"></label>
+      <img id="preview" style="height:60px;display:none" alt="logo preview">
+      <div style="display:flex;gap:8px">
+        <a class="btn" href="index.html">Back</a>
+        <button class="btn btn-primary" id="save">Save</button>
+        <button class="btn" id="reset">Reset</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    const defaults = { name:'PriceScanner', tagline:'Find the best price, fast', primary:'#4f46e5', secondary:'#7c3aed', logoUrl:'logo.svg' };
+    let cfg = {...defaults, ...JSON.parse(localStorage.getItem('site.config')||"{}")};
+    const $ = id => document.getElementById(id);
+    function sync(){
+      $('name').value = cfg.name;
+      $('tagline').value = cfg.tagline;
+      $('primary').value = cfg.primary;
+      $('secondary').value = cfg.secondary;
+      if(cfg.logoUrl){ $('preview').src = cfg.logoUrl; $('preview').style.display='block'; }
+    }
+    sync();
+    $('logo').addEventListener('change', async (e)=>{
+      const f=e.target.files?.[0]; if(!f) return;
+      const b = await f.target.files[0].arrayBuffer();
+      const base64 = 'data:'+f.target.files[0].type+';base64,' + btoa(String.fromCharCode(...new Uint8Array(b)));
+      cfg.logoUrl = base64; sync();
+    });
+    $('save').onclick = ()=>{
+      cfg.name = $('name').value;
+      cfg.tagline = $('tagline').value;
+      cfg.primary = $('primary').value;
+      cfg.secondary = $('secondary').value;
+      localStorage.setItem('site.config', JSON.stringify(cfg));
+      alert('Saved! Open the homepage to see changes.');
+    };
+    $('reset').onclick = ()=>{ localStorage.removeItem('site.config'); alert('Reset. Reload the page.'); location.reload(); };
+  </script>
+</body>
+</html>
