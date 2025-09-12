@@ -5,33 +5,39 @@ let currency = "SGD";
 let sortBy = "priceAsc";
 let query = "";
 let offers = [];          // demo/base offers
-let ebayOffers = [];      // live eBay offers
-let userCountry = "US";   // updated by /meta when available
-let maxShipDays = "";     // filter
+let ebayOffers = [];      // live eBay offers (from Vercel API)
+let userCountry = "US";   // simple default
+let maxShipDays = "";     // shipping filter
 let fx = { base: "USD", rates: { USD: 1 }, at: 0 };
 let watches = JSON.parse(localStorage.getItem('ps.watches')||"[]");
 
-// i18n labels (short; feel free to expand)
+// Five-language UI labels (short)
 const i18n = {
   en:{Lang:"Language",Currency:"Currency",Sort:"Sort by",Sources:"Sources",Watchlist:"Watchlist",Refresh:"Refresh",MaxShip:"Max ship days"},
   ar:{Lang:"اللغة",Currency:"العملة",Sort:"ترتيب حسب",Sources:"المصادر",Watchlist:"قائمة المراقبة",Refresh:"تحديث",MaxShip:"أقصى أيام للشحن"},
   fr:{Lang:"Langue",Currency:"Devise",Sort:"Trier par",Sources:"Sources",Watchlist:"Liste de suivi",Refresh:"Actualiser",MaxShip:"Délais max"},
-  es:{Lang:"Idioma",Currency:"Moneda",Sort:"Ordenar por",Sources:"Fuentes",Watchlist:"Lista de vigilancia",Refresh:"Actualizar",MaxShip:"Días máx envío"},
+  es:{Lang:"Idioma",Currency:"Moneda",Sort:"Ordenar por",Sources:"Fuentes",Watchlist:"Lista",Refresh:"Actualizar",MaxShip:"Días máx envío"},
   zh:{Lang:"语言",Currency:"货币",Sort:"排序",Sources:"来源",Watchlist:"关注列表",Refresh:"刷新",MaxShip:"最⻓运输天数"}
 };
 let lang = localStorage.getItem('ps.lang') || 'en';
 
-// Your Worker for eBay (Production)
-const EBAY_WORKER = "https://pricescanner.b48rptrywg.workers.dev";
-console.log("Using EBAY_WORKER =", EBAY_WORKER);
+// >>> Set this to your Vercel API URL <<<
+const EBAY_API = "https://pricescanner-proxy.vercel.app/api/ebay"; // change if your project URL differs
+console.log("Using EBAY_API =", EBAY_API);
 
 // Trending terms (used when no history)
 const trending = ["headphones","iphone","ssd","laptop","smartwatch","wireless earbuds","gaming mouse","4K TV","backpack"];
 
 // === HELPERS ===
-function fmt(n){ try{ return new Intl.NumberFormat(currency==='SGD'?'en-SG':'en', {style:'currency',currency}).format(n) }catch(e){ return Number(n).toFixed(2)} }
+function fmt(n){ try{ return new Intl.NumberFormat(currency==='SGD'?'en-SG':'en',{style:'currency',currency}).format(n) }catch(e){ return Number(n).toFixed(2)} }
 const $ = sel => document.querySelector(sel);
 function t(k){ return (i18n[lang] && i18n[lang][k]) || i18n.en[k] || k; }
+
+// Guess country from browser locale (fallback only)
+(function(){ try{
+  const loc = (navigator.language || "en-US").split("-")[1];
+  if (loc) userCountry = loc.toUpperCase();
+}catch{}})();
 
 // FX: fetch ECB USD table (cache ~12h)
 async function loadRates() {
@@ -57,30 +63,41 @@ function convertAmount(amount, fromCur){
 }
 function priceInSelected(o){ return convertAmount(o.price, o.currency||"USD"); }
 
-// simple shipping-days estimator (rough)
+// shipping-days estimator (simple)
 function estimateShipDays(vendor, country){
   const fast = ["Amazon","eBay","Walmart","BestBuy","Target"];
-  const sea  = ["Shopee","Lazada","AliExpress","Temu","Taobao","Alibaba"];
+  const intl = ["Shopee","Lazada","AliExpress","Temu","Taobao","Alibaba","MercadoLibre","Rakuten"];
   if (fast.includes(vendor)) return (country==="SG"||country==="US"||country==="GB") ? 3 : 7;
-  if (sea.includes(vendor))  return (country==="SG") ? 7 : 14;
+  if (intl.includes(vendor)) return (country==="SG") ? 7 : 14;
   return 10;
 }
 
 // === DATA LOADERS ===
 async function loadDemo(){
-  const res = await fetch('demo.json');
-  offers = (await res.json()).map(o=>({ ...o, currency: o.currency || "USD", shipDays: o.shipDays || estimateShipDays(o.vendor, userCountry) }));
+  try{
+    const r = await fetch('demo.json', { cache: "no-store" });
+    if (!r.ok) throw new Error('demo.json not found');
+    offers = (await r.json()).map(o=>({ ...o, currency: o.currency || "USD", shipDays: o.shipDays || estimateShipDays(o.vendor, userCountry) }));
+  }catch(e){
+    console.error('Failed to load demo.json:', e);
+    offers = [
+      { id:'Fallback-1', title:'Sample Headphones', image:'https://images.unsplash.com/photo-1518441315835-06e9d3e8de1c?q=80&w=1200&auto=format&fit=crop',
+        price:59.99, currency:"USD", shipping:'Free', shipTime:'3–7 days', rating:4.4, vendor:'Amazon', url:'#', shipDays:estimateShipDays('Amazon', userCountry) }
+    ];
+  }
 }
+
 async function loadEbay(q){
   ebayOffers = [];
   const term = (q||"").trim();
-  if (!enabled.includes("eBay") || !EBAY_WORKER || !term) return;
+  if (!enabled.includes("eBay") || !EBAY_API || !term) return;
   try{
-    const r = await fetch(EBAY_WORKER + "?q=" + encodeURIComponent(term), { mode:"cors" });
-    if (!r.ok) { console.warn("eBay worker error", r.status); return; }
+    const join = EBAY_API.includes("?") ? "&" : "?";
+    const r = await fetch(EBAY_API + join + "q=" + encodeURIComponent(term), { mode:"cors", cache:"no-store" });
+    if (!r.ok) { console.warn("eBay API error", r.status); return; }
     const d = await r.json();
     ebayOffers = (Array.isArray(d.results)? d.results : []).map(o=>({ ...o, currency:o.currency||"USD", shipDays: estimateShipDays("eBay", userCountry) }));
-  }catch(e){ console.warn("eBay worker fetch failed:", e); }
+  }catch(e){ console.warn("eBay API fetch failed:", e); }
 }
 
 // merge & filter
@@ -88,18 +105,16 @@ function currentResults(){
   let base = offers.filter(o => enabled.includes(o.vendor));
   if (enabled.includes("eBay")) { base = base.filter(o=>o.vendor!=="eBay").concat(ebayOffers); }
   if (query) base = base.filter(o => o.title.toLowerCase().includes(query.toLowerCase()));
-  // shipping filter
   if (maxShipDays) base = base.filter(o => (o.shipDays||estimateShipDays(o.vendor,userCountry)) <= Number(maxShipDays));
-  // sort
   if (sortBy==='priceAsc')  base.sort((a,b)=> priceInSelected(a) - priceInSelected(b));
   if (sortBy==='priceDesc') base.sort((a,b)=> priceInSelected(b) - priceInSelected(a));
   if (sortBy==='rating')    base.sort((a,b)=> b.rating - a.rating);
-  // dedupe by title+vendor @ lowest converted price
+  // dedupe by title+vendor lowest converted price
   const m = new Map(); for (const o of base){ const k=(o.title+'|'+o.vendor).toLowerCase(); const v=m.get(k); if(!v || priceInSelected(o) < priceInSelected(v)) m.set(k,o); }
   return Array.from(m.values());
 }
 
-// === PERSONALIZATION ===
+// personalization
 function captureReferral(){
   const params = new URLSearchParams(location.search);
   const r = params.get('ref'); if (r) localStorage.setItem('ps.ref', r);
@@ -110,38 +125,31 @@ function defaultQuery(){
   return trending[Math.floor(Math.random()*trending.length)];
 }
 
-// === RENDER ===
+// labels / RTL
 function renderLabels(){
-  $('#lblLang').textContent = t('Lang');
+  $('#lblLang').textContent     = t('Lang');
   $('#lblCurrency').textContent = t('Currency');
-  $('#lblSort').textContent = t('Sort');
-  $('#lblSources').textContent = t('Sources') + " (click to include/exclude):";
-  $('#lblWatchlist').textContent = t('Watchlist');
-  $('#refreshBtn').textContent = t('Refresh');
-  $('#lblShip').textContent = t('MaxShip');
+  $('#lblSort').textContent     = t('Sort');
+  $('#lblSources').textContent  = t('Sources') + " (click to include/exclude):";
+  $('#lblWatchlist').textContent= t('Watchlist');
+  $('#refreshBtn').textContent  = t('Refresh');
+  $('#lblShip').textContent     = t('MaxShip');
   document.documentElement.dir = (lang==='ar') ? 'rtl' : 'ltr';
 }
 
+// render UI
 function render(){
-  // brand
-  $('#brandLogo').src = config.logoUrl || 'logo.svg';
-  $('#brandName').textContent = config.name;
-  $('#tagline').textContent = config.tagline;
-
-  // labels
   renderLabels();
 
-  // source toggles
   const srcWrap = $('#sources'); srcWrap.innerHTML = '';
   vendors.forEach(v=>{
     const on = enabled.includes(v);
     const b = document.createElement('button'); b.className='badge'; b.style.background = on?'#ecfdf5':'#fff7ed';
     b.textContent = (on?'✔ ':'✖ ')+v;
-    b.onclick = ()=>{ enabled = on ? enabled.filter(x=>x!==v) : [...enabled, v]; render() };
+    b.onclick = ()=>{ enabled = on ? enabled.filter(x=>x!==v) : [...enabled, v]; render(); };
     srcWrap.appendChild(b);
   });
 
-  // results
   const data = currentResults();
   const grid = $('#grid'); grid.innerHTML='';
   data.forEach(item=>{
@@ -169,14 +177,33 @@ function render(){
           <a class="btn btn-primary" href="${item.url}" target="_blank" rel="noreferrer">View Deal</a>
           <button class="btn watchBtn">Watch</button>
         </div>
-      </div>
-    `;
+      </div>`;
     card.querySelector('.watchBtn').onclick = ()=> addWatch(item);
     grid.appendChild(card);
   });
+
+  // watchlist
+  const list = $('#watchlist'); list.innerHTML = watches.length ? '' : '<div style="font-size:14px;color:#6b7280">No watched items yet.</div>';
+  watches.forEach(w=>{
+    const row = document.createElement('div'); row.className='card'; row.style.border='1px solid rgba(0,0,0,.08)';
+    row.innerHTML = `
+      <div style="padding:12px">
+        <div style="font-weight:700">${w.title}</div>
+        <div style="font-size:12px;color:#6b7280">Baseline: ${w.baseline??'—'} • Last: ${w.last??'—'} • ${w.triggered?'Triggered':'Waiting'}</div>
+        <div class="row" style="margin-top:8px;align-items:center">
+          <input type="number" class="input target" placeholder="Target price (${currency})" value="${w.targetPrice??''}"/>
+          <input type="number" class="input discount" placeholder="Discount % from baseline" value="${w.discountPct??''}"/>
+          <button class="btn remove">Remove</button>
+        </div>
+      </div>`;
+    row.querySelector('.target').oninput = (e)=>{ w.targetPrice = Number(e.target.value); saveWatches(); }
+    row.querySelector('.discount').oninput = (e)=>{ w.discountPct = Number(e.target.value); saveWatches(); }
+    row.querySelector('.remove').onclick = ()=>{ watches = watches.filter(x=>x!==w); saveWatches(); render(); }
+    list.appendChild(row);
+  });
 }
 
-// === WATCHLIST ===
+// watchlist helpers
 function saveWatches(){ localStorage.setItem('ps.watches', JSON.stringify(watches)) }
 function addWatch(item){
   const id = (item.title + '|' + enabled.sort().join(',')).toLowerCase();
@@ -206,47 +233,41 @@ async function refreshWatches(){
 }
 function toast(m){ const t = $('#toast'); t.textContent=m; t.style.display='block'; setTimeout(()=>t.style.display='none', 3500) }
 
-// === BOOT ===
+// personalization
+function captureReferral(){
+  const params = new URLSearchParams(location.search);
+  const r = params.get('ref'); if (r) localStorage.setItem('ps.ref', r);
+}
+function defaultQuery(){
+  const last = localStorage.getItem('ps.lastQuery');
+  if (last) return last;
+  return trending[Math.floor(Math.random()*trending.length)];
+}
+
+// BOOT
 let debounce;
 window.addEventListener('DOMContentLoaded', async ()=>{
   // language
   const selLang = $('#lang'); if (selLang){ selLang.value = lang; selLang.onchange = ()=>{ lang = selLang.value; localStorage.setItem('ps.lang', lang); render(); } }
-  // currency
-  $('#currency').onchange = (e)=>{ currency = e.target.value; render() }
-  // sort
-  $('#sort').onchange = (e)=>{ sortBy = e.target.value; render() }
-  // ship filter
-  $('#shipMax').onchange = (e)=>{ maxShipDays = e.target.value; render() }
-  // search box with debounce + save last query
+  // currency/sort/ship filters
+  $('#currency').onchange = (e)=>{ currency = e.target.value; render(); }
+  $('#sort').onchange     = (e)=>{ sortBy   = e.target.value; render(); }
+  $('#shipMax').onchange  = (e)=>{ maxShipDays = e.target.value; render(); }
+  // search
   $('#search').oninput = (e)=>{
-    query = e.target.value;
-    localStorage.setItem('ps.lastQuery', query);
-    clearTimeout(debounce);
-    debounce = setTimeout(async ()=>{ await loadEbay(query); render(); }, 250);
+    query = e.target.value; localStorage.setItem('ps.lastQuery', query);
+    clearTimeout(debounce); debounce=setTimeout(async()=>{ await loadEbay(query); render(); }, 250);
   };
   $('#searchBtn').onclick = ()=>{ const input=$('#search'); if(input){ input.dispatchEvent(new Event('input',{bubbles:true})); } }
-  // watchlist refresh
+  // watchlist
   $('#refreshBtn').onclick = refreshWatches;
 
-  // capture referral
   captureReferral();
-
-  // load FX & location meta
   await loadRates();
-  try{
-    // optional meta endpoint if you add it to the Worker later
-    const meta = await fetch(`${EBAY_WORKER.replace(/\/$/,'')}/meta`, { mode:"cors" }).then(r=>r.ok?r.json():null).catch(()=>null);
-    if (meta && meta.country) userCountry = meta.country;
-    if (meta && meta.suggestedCurrency && !localStorage.getItem('ps.currencyPinned')) {
-      currency = meta.suggestedCurrency;
-      $('#currency').value = currency;
-    }
-  }catch{}
 
-  // default query (personalized)
+  // default query
   const startTerm = defaultQuery();
-  query = startTerm;
-  const searchEl = $('#search'); if (searchEl) searchEl.value = startTerm;
+  query = startTerm; const se = $('#search'); if (se) se.value = startTerm;
 
   // load data
   await loadDemo();
