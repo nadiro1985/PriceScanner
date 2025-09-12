@@ -22,7 +22,7 @@ const i18n = {
 let lang = localStorage.getItem('ps.lang') || 'en';
 
 // >>> Set this to your Vercel API URL <<<
-const EBAY_API = "https://pricescanner-proxy.vercel.app/api/ebay"; // change if your project URL differs
+const EBAY_API = "https://pricescanner.b48rptrywg.workers.dev"; // change if your project URL differs
 console.log("Using EBAY_API =", EBAY_API);
 
 // Trending terms (used when no history)
