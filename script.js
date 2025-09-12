@@ -1,31 +1,82 @@
-
+// --- SOURCES / STATE ---
 const vendors = ["Amazon","eBay","Walmart","AliExpress","Etsy","Rakuten","Shopee","Lazada","Temu","MercadoLibre","BestBuy","Target","Newegg","HomeDepot","Wayfair"];
 let enabled = [...vendors];
 let currency = "SGD";
 let sortBy = "priceAsc";
 let query = "";
-let offers = [];
+let offers = [];          // demo/base offers
+let ebayOffers = [];      // live eBay offers
 let watches = JSON.parse(localStorage.getItem('ps.watches')||"[]");
-let config = JSON.parse(localStorage.getItem('site.config')||"{}");
+let config = JSON.parse(localStorage.getItem('site.config')||"{ }");
 const defaults = { name: "PriceScanner", tagline: "Find the best price, fast", primary:"#4f46e5", secondary:"#7c3aed", logoUrl:"logo.svg" };
 config = {...defaults, ...config};
 document.documentElement.style.setProperty('--brand1', config.primary);
 document.documentElement.style.setProperty('--brand2', config.secondary);
 
+// <<< SET THIS TO YOUR WORKER URL >>>
+const EBAY_WORKER = "https://pricescanner.b48rptrywg.workers.dev";
+console.log("Using EBAY_WORKER =", EBAY_WORKER);
+
+// --- UTILS ---
 function fmt(n){ try{ return new Intl.NumberFormat(currency==='SGD'?'en-SG':'en', {style:'currency',currency}).format(n) }catch(e){ return Number(n).toFixed(2)} }
 const $ = sel => document.querySelector(sel);
 
-async function loadData(){
-  const res = await fetch('demo.json'); 
-  offers = await res.json();
-  render();
+function dedupeByTitleVendor(list){
+  const m = new Map();
+  for (const o of list){
+    const k = (o.title + '|' + o.vendor).toLowerCase();
+    if (!m.has(k) || m.get(k).price > o.price) m.set(k, o);
+  }
+  return Array.from(m.values());
 }
 
+// --- DATA LOADERS ---
+async function loadDemo(){
+  const res = await fetch('demo.json');
+  offers = await res.json();
+}
+
+async function loadEbay(q){
+  ebayOffers = [];
+  const term = (q||"").trim();
+  if (!enabled.includes("eBay") || !EBAY_WORKER || !term) return;
+  try{
+    const r = await fetch(EBAY_WORKER + "?q=" + encodeURIComponent(term), { mode: "cors" });
+    if (!r.ok) { console.warn("eBay worker error", r.status); return; }
+    const d = await r.json();
+    ebayOffers = Array.isArray(d.results) ? d.results : [];
+  }catch(e){
+    console.warn("eBay worker fetch failed:", e);
+  }
+}
+
+// Merge demo + live eBay (if enabled), then filter/sort
+function currentResults(){
+  // Start with demo offers whose vendor is enabled
+  let base = offers.filter(o => enabled.includes(o.vendor));
+  // Replace demo eBay with live eBay if eBay is enabled
+  if (enabled.includes("eBay")) {
+    base = base.filter(o => o.vendor !== "eBay");
+    base = base.concat(ebayOffers);
+  }
+  // Query filter
+  if (query) base = base.filter(o => o.title.toLowerCase().includes(query.toLowerCase()));
+  // Sort
+  if (sortBy==='priceAsc') base.sort((a,b)=>a.price-b.price);
+  if (sortBy==='priceDesc') base.sort((a,b)=>b.price-a.price);
+  if (sortBy==='rating') base.sort((a,b)=>b.rating-a.rating);
+  // Dedupe
+  return dedupeByTitleVendor(base);
+}
+
+// --- RENDER ---
 function render(){
+  // brand
   $('#brandLogo').src = config.logoUrl || 'logo.svg';
   $('#brandName').textContent = config.name;
   $('#tagline').textContent = config.tagline;
 
+  // source toggles
   const srcWrap = $('#sources'); srcWrap.innerHTML = '';
   vendors.forEach(v=>{
     const on = enabled.includes(v);
@@ -35,12 +86,8 @@ function render(){
     srcWrap.appendChild(b);
   });
 
-  let res = offers.filter(o => enabled.includes(o.vendor));
-  if (query) res = res.filter(o => o.title.toLowerCase().includes(query.toLowerCase()));
-  if (sortBy==='priceAsc') res.sort((a,b)=>a.price-b.price);
-  if (sortBy==='priceDesc') res.sort((a,b)=>b.price-a.price);
-  if (sortBy==='rating') res.sort((a,b)=>b.rating-a.rating);
-
+  // results
+  const res = currentResults();
   const grid = $('#grid'); grid.innerHTML='';
   res.forEach(item=>{
     const card = document.createElement('div'); card.className='card';
@@ -69,6 +116,7 @@ function render(){
     grid.appendChild(card);
   });
 
+  // watchlist
   const list = $('#watchlist'); list.innerHTML='';
   if (watches.length===0){ list.innerHTML = '<div style="font-size:14px;color:#6b7280">No watched items yet.</div>'; }
   watches.forEach(w=>{
@@ -91,8 +139,8 @@ function render(){
   });
 }
 
+// --- WATCHLIST HELPERS ---
 function saveWatches(){ localStorage.setItem('ps.watches', JSON.stringify(watches)) }
-
 function addWatch(item){
   const id = (item.title + '|' + enabled.sort().join(',')).toLowerCase();
   if (watches.find(w=>w.id===id)) { toast('Already in watchlist'); return }
@@ -101,12 +149,16 @@ function addWatch(item){
 }
 
 async function refreshWatches(){
-  const res = await fetch('demo.json').then(r=>r.json());
+  // Re-use the same merged results the UI shows now
+  const res = currentResults();
   let changed=false, msg;
   watches = watches.map(w=>{
-    const pool = res.filter(o=> w.vendors.includes(o.vendor) && o.title.includes(w.title.split(' Sample')[0]))
+    const pool = res.filter(o =>
+      w.vendors.includes(o.vendor) &&
+      o.title.toLowerCase().includes(w.title.toLowerCase().split(' sample')[0]) // tolerant match
+    );
     if (!pool.length) return w;
-    const best = pool.reduce((a,b)=> a.price<=b.price?a:b);
+    const best = pool.reduce((a,b)=> a.price<=b.price ? a : b);
     const baseline = w.baseline ?? best.price;
     const discount = baseline>0 ? ((baseline-best.price)/baseline)*100 : 0;
     const priceTrig = typeof w.targetPrice==='number' && best.price <= w.targetPrice;
@@ -123,10 +175,19 @@ async function refreshWatches(){
 
 function toast(m){ const t = $('#toast'); t.textContent=m; t.style.display='block'; setTimeout(()=>t.style.display='none', 3500) }
 
-window.addEventListener('DOMContentLoaded', ()=>{
-  $('#search').oninput = (e)=>{ query = e.target.value; render() }
+// --- BOOT ---
+let debounce;
+window.addEventListener('DOMContentLoaded', async ()=>{
+  $('#search').oninput = (e)=>{
+    query = e.target.value;
+    clearTimeout(debounce);
+    debounce = setTimeout(async ()=>{ await loadEbay(query); render(); }, 250);
+  };
   $('#currency').onchange = (e)=>{ currency = e.target.value; render() }
   $('#sort').onchange = (e)=>{ sortBy = e.target.value; render() }
   $('#refreshBtn').onclick = refreshWatches;
-  loadData();
+
+  await loadDemo();
+  await loadEbay(query); // initial (empty query = skip)
+  render();
 });
