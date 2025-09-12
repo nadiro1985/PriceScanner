@@ -1,10 +1,9 @@
-
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>PriceScanner — 15 platforms (Demo)</title>
+  <title>PriceScanner — 15 platforms</title>
   <link rel="icon" href="logo.svg">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -19,10 +18,13 @@
           </div>
         </div>
         <h1 id="tagline" class="heroTitle" style="font-size:40px;margin:6px 0">Find the best price, fast</h1>
-        <p style="color:#475569;max-width:580px">Search once, compare everywhere. Add to your watchlist and set a target price or discount to get alerts while you browse. (Demo mode — no external APIs.)</p>
+        <p style="color:#475569;max-width:580px">
+          Search once, compare everywhere. Add to your watchlist and set a target price or discount to get alerts while you browse.
+        </p>
         <div class="row" style="margin-top:12px">
           <input id="search" class="input" placeholder="Search products…" style="flex:1 1 auto">
-          <a class="btn btn-primary" href="index.html">Search</a>
+          <!-- changed from <a href="index.html"> to a button that triggers search -->
+          <button id="searchBtn" class="btn btn-primary" type="button">Search</button>
         </div>
         <div class="row" style="margin-top:10px;align-items:center">
           <span style="font-size:13px;color:#64748b">Currency</span>
@@ -57,18 +59,30 @@
 
   <footer class="footer">
     <div class="container" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
-      <div>© <span id="year"></span> <span id="brandFooter">PriceScanner</span> • 15 platforms (Demo)</div>
+      <div>© <span id="year"></span> <span id="brandFooter">PriceScanner</span> • 15 platforms</div>
       <div style="display:flex;gap:12px;font-size:14px"><a href="admin.html">Admin</a><a href="#">Privacy</a><a href="#">Terms</a><a href="#">Affiliates</a></div>
     </div>
   </footer>
 
   <script>
+    // footer year + brand
     document.getElementById('year').textContent = new Date().getFullYear();
     (function(){
       const cfg = JSON.parse(localStorage.getItem('site.config')||"{}");
       if(cfg && cfg.name){ document.getElementById('brandFooter').textContent = cfg.name; }
     })();
+
+    // make the Search button trigger the same logic as typing in the box
+    document.getElementById('searchBtn')?.addEventListener('click', function(e){
+      e.preventDefault();
+      const input = document.getElementById('search');
+      if (input) {
+        // fire the 'input' listener that script.js sets up
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    });
   </script>
-  <script src="script.js"></script>
+  <!-- cache-bust so the new eBay-enabled script definitely loads -->
+  <script src="script.js?v=8"></script>
 </body>
 </html>
