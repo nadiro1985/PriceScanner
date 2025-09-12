@@ -6,6 +6,7 @@ let sortBy = "priceAsc";
 let query = "";
 let offers = [];          // demo/base offers
 let ebayOffers = [];      // live eBay offers
+let fx = { base: "USD", rates: { USD: 1 }, at: 0 };   // FX cache
 let watches = JSON.parse(localStorage.getItem('ps.watches')||"[]");
 let config = JSON.parse(localStorage.getItem('site.config')||"{ }");
 const defaults = { name: "PriceScanner", tagline: "Find the best price, fast", primary:"#4f46e5", secondary:"#7c3aed", logoUrl:"logo.svg" };
@@ -13,7 +14,7 @@ config = {...defaults, ...config};
 document.documentElement.style.setProperty('--brand1', config.primary);
 document.documentElement.style.setProperty('--brand2', config.secondary);
 
-// <<< SET THIS TO YOUR WORKER URL >>>
+// Set your Worker URL
 const EBAY_WORKER = "https://pricescanner.b48rptrywg.workers.dev";
 console.log("Using EBAY_WORKER =", EBAY_WORKER);
 
@@ -21,11 +22,51 @@ console.log("Using EBAY_WORKER =", EBAY_WORKER);
 function fmt(n){ try{ return new Intl.NumberFormat(currency==='SGD'?'en-SG':'en', {style:'currency',currency}).format(n) }catch(e){ return Number(n).toFixed(2)} }
 const $ = sel => document.querySelector(sel);
 
+// --- FX: fetch daily ECB rates (via frankfurter.app), cache ~12h ---
+async function loadRates() {
+  try {
+    const cached = JSON.parse(localStorage.getItem('ps.fx')||'null');
+    const twelveH = 12 * 60 * 60 * 1000;
+    if (cached && (Date.now() - cached.at) < twelveH) {
+      fx = cached; return;
+    }
+    // Base USD gives us a table USD -> others
+    const r = await fetch("https://api.frankfurter.app/latest?from=USD", { cache: "no-store" });
+    const d = await r.json();
+    const rates = d.rates || {};
+    rates.USD = 1;
+    fx = { base: "USD", rates, at: Date.now() };
+    localStorage.setItem('ps.fx', JSON.stringify(fx));
+  } catch(e) {
+    console.warn("FX load failed, using last cached or USD-only.", e);
+  }
+}
+
+// Convert amount from 'fromCur' to selected 'currency' using fx table
+function convertAmount(amount, fromCur) {
+  const from = (fromCur || "USD").toUpperCase();
+  const to = currency.toUpperCase();
+  if (from === to) return amount;
+  const r = fx.rates || {};
+  const rFrom = (from === fx.base) ? 1 : r[from];
+  const rTo   = (to   === fx.base) ? 1 : r[to];
+  if (!rFrom || !rTo) return amount; // fallback if missing
+  // amount_in_to = amount * (rTo / rFrom)
+  return amount * (rTo / rFrom);
+}
+
+// unified accessor for “display price in selected currency”
+function priceInSelected(offer) {
+  const baseCurrency = offer.currency || "USD";
+  return convertAmount(offer.price, baseCurrency);
+}
+
 function dedupeByTitleVendor(list){
   const m = new Map();
   for (const o of list){
     const k = (o.title + '|' + o.vendor).toLowerCase();
-    if (!m.has(k) || m.get(k).price > o.price) m.set(k, o);
+    const v = m.get(k);
+    if (!v || priceInSelected(o) < priceInSelected(v)) m.set(k, o);
   }
   return Array.from(m.values());
 }
@@ -34,6 +75,8 @@ function dedupeByTitleVendor(list){
 async function loadDemo(){
   const res = await fetch('demo.json');
   offers = await res.json();
+  // assume demo prices are USD unless stated
+  offers = offers.map(o => ({ ...o, currency: o.currency || "USD" }));
 }
 
 async function loadEbay(q){
@@ -44,28 +87,24 @@ async function loadEbay(q){
     const r = await fetch(EBAY_WORKER + "?q=" + encodeURIComponent(term), { mode: "cors" });
     if (!r.ok) { console.warn("eBay worker error", r.status); return; }
     const d = await r.json();
-    ebayOffers = Array.isArray(d.results) ? d.results : [];
+    // ensure currency present
+    ebayOffers = (Array.isArray(d.results) ? d.results : []).map(o => ({ ...o, currency: o.currency || "USD" }));
   }catch(e){
     console.warn("eBay worker fetch failed:", e);
   }
 }
 
-// Merge demo + live eBay (if enabled), then filter/sort
+// Merge demo + live eBay (if enabled), filter/sort by converted price
 function currentResults(){
-  // Start with demo offers whose vendor is enabled
   let base = offers.filter(o => enabled.includes(o.vendor));
-  // Replace demo eBay with live eBay if eBay is enabled
   if (enabled.includes("eBay")) {
     base = base.filter(o => o.vendor !== "eBay");
     base = base.concat(ebayOffers);
   }
-  // Query filter
   if (query) base = base.filter(o => o.title.toLowerCase().includes(query.toLowerCase()));
-  // Sort
-  if (sortBy==='priceAsc') base.sort((a,b)=>a.price-b.price);
-  if (sortBy==='priceDesc') base.sort((a,b)=>b.price-a.price);
+  if (sortBy==='priceAsc') base.sort((a,b)=>priceInSelected(a)-priceInSelected(b));
+  if (sortBy==='priceDesc') base.sort((a,b)=>priceInSelected(b)-priceInSelected(a));
   if (sortBy==='rating') base.sort((a,b)=>b.rating-a.rating);
-  // Dedupe
   return dedupeByTitleVendor(base);
 }
 
@@ -90,6 +129,7 @@ function render(){
   const res = currentResults();
   const grid = $('#grid'); grid.innerHTML='';
   res.forEach(item=>{
+    const displayPrice = priceInSelected(item);
     const card = document.createElement('div'); card.className='card';
     card.innerHTML = `
       <div style="position:relative;width:100%;padding-top:56%">
@@ -103,7 +143,7 @@ function render(){
           <span class="badge">${item.vendor}</span><span class="badge">⭐ ${item.rating}</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-          <div style="font-size:22px;font-weight:800">${fmt(item.price)}</div>
+          <div style="font-size:22px;font-weight:800">${fmt(displayPrice)}</div>
           <div style="font-size:12px;color:#6b7280;text-align:right"><div>${item.shipping}</div><div>${item.shipTime}</div></div>
         </div>
         <div class="row" style="margin-top:10px">
@@ -144,29 +184,28 @@ function saveWatches(){ localStorage.setItem('ps.watches', JSON.stringify(watche
 function addWatch(item){
   const id = (item.title + '|' + enabled.sort().join(',')).toLowerCase();
   if (watches.find(w=>w.id===id)) { toast('Already in watchlist'); return }
-  watches = [{ id, title:item.title, vendors:[...enabled], targetPrice:Math.max(0,item.price-1) }, ...watches];
+  watches = [{ id, title:item.title, vendors:[...enabled], targetPrice:Math.max(0, priceInSelected(item)-1) }, ...watches];
   saveWatches(); toast('Added to watchlist'); render();
 }
 
 async function refreshWatches(){
-  // Re-use the same merged results the UI shows now
   const res = currentResults();
   let changed=false, msg;
   watches = watches.map(w=>{
     const pool = res.filter(o =>
       w.vendors.includes(o.vendor) &&
-      o.title.toLowerCase().includes(w.title.toLowerCase().split(' sample')[0]) // tolerant match
+      o.title.toLowerCase().includes(w.title.toLowerCase().split(' sample')[0])
     );
     if (!pool.length) return w;
-    const best = pool.reduce((a,b)=> a.price<=b.price ? a : b);
-    const baseline = w.baseline ?? best.price;
-    const discount = baseline>0 ? ((baseline-best.price)/baseline)*100 : 0;
-    const priceTrig = typeof w.targetPrice==='number' && best.price <= w.targetPrice;
+    const best = pool.reduce((a,b)=> priceInSelected(a) <= priceInSelected(b) ? a : b);
+    const baseline = w.baseline ?? priceInSelected(best);
+    const discount = baseline>0 ? ((baseline-priceInSelected(best))/baseline)*100 : 0;
+    const priceTrig = typeof w.targetPrice==='number' && priceInSelected(best) <= w.targetPrice;
     const discTrig  = typeof w.discountPct==='number' && discount >= (w.discountPct||0);
     const trig = priceTrig || discTrig;
-    if (trig && !w.triggered) msg = `${w.title} @ ${best.vendor} → ${fmt(best.price)}`;
-    if (trig!==!!w.triggered || w.last!==best.price || w.lastVendor!==best.vendor || w.baseline!==baseline) changed=true;
-    return {...w, baseline, last:best.price, lastVendor:best.vendor, triggered:trig};
+    if (trig && !w.triggered) msg = `${w.title} @ ${best.vendor} → ${fmt(priceInSelected(best))}`;
+    if (trig!==!!w.triggered || w.last!==priceInSelected(best) || w.lastVendor!==best.vendor || w.baseline!==baseline) changed=true;
+    return {...w, baseline, last:priceInSelected(best), lastVendor:best.vendor, triggered:trig};
   });
   if (changed) saveWatches();
   if (msg) toast(msg);
@@ -187,7 +226,8 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   $('#sort').onchange = (e)=>{ sortBy = e.target.value; render() }
   $('#refreshBtn').onclick = refreshWatches;
 
+  await loadRates();   // <<< load ECB FX table
   await loadDemo();
-  await loadEbay(query); // initial (empty query = skip)
+  await loadEbay(query);
   render();
 });
