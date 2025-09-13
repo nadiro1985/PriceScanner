@@ -47,8 +47,6 @@
     .select.small{padding:.45rem .6rem; border-radius:12px; border:1px solid rgba(0,0,0,.12); background:#fff}
     .sr-only{position:absolute; left:-9999px}
     #toast{aria-live:polite}
-    .vendorPills{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px}
-    .pill{display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border:1px solid rgba(0,0,0,.08); border-radius:999px; background:#fff}
     @media (max-width:640px){ .topControls{justify-content:flex-end} }
   </style>
 </head>
@@ -88,38 +86,35 @@
           <button id="searchBtn" class="btn btn-primary" type="button">Search</button>
         </div>
 
-        <div class="row" style="margin-top:10px; align-items:center; gap:12px; flex-wrap:wrap">
-          <div style="display:flex; align-items:center; gap:6px">
-            <span style="font-size:13px;color:#64748b" id="lblSort">Sort by</span>
-            <select id="sort" class="select" aria-labelledby="lblSort">
-              <option value="priceAsc">Price: Low to High</option>
-              <option value="priceDesc">Price: High to Low</option>
-              <option value="rating">Rating</option>
-            </select>
-          </div>
-          <div style="display:flex; align-items:center; gap:6px">
-            <span style="font-size:13px;color:#64748b" id="lblShip">Max ship days</span>
-            <select id="shipMax" class="select" aria-labelledby="lblShip">
-              <option value="">Any</option>
-              <option value="3">≤ 3</option>
-              <option value="7">≤ 7</option>
-              <option value="14">≤ 14</option>
-              <option value="21">≤ 21</option>
-            </select>
-          </div>
-          <label style="display:flex; align-items:center; gap:8px; font-size:14px; color:#334155">
-            <input type="checkbox" id="groupToggle" checked>
-            Group same product across stores
-          </label>
+        <div class="row" style="margin-top:10px; align-items:center">
+          <span style="font-size:13px;color:#64748b" id="lblSort">Sort by</span>
+          <select id="sort" class="select" aria-labelledby="lblSort">
+            <option value="priceAsc">Price: Low to High</option>
+            <option value="priceDesc">Price: High to Low</option>
+            <option value="rating">Rating</option>
+          </select>
+          <span style="font-size:13px;color:#64748b" id="lblShip">Max ship days</span>
+          <select id="shipMax" class="select" aria-labelledby="lblShip">
+            <option value="">Any</option>
+            <option value="3">≤ 3</option>
+            <option value="7">≤ 7</option>
+            <option value="14">≤ 14</option>
+            <option value="21">≤ 21</option>
+          </select>
         </div>
 
         <div class="trustRow">
           <span class="smallNote">Trusted platforms:</span>
-          <span class="trustBadge">Amazon</span><span class="trustBadge">eBay</span>
-          <span class="trustBadge">AliExpress</span><span class="trustBadge">Shopee</span>
-          <span class="trustBadge">Lazada</span><span class="trustBadge">Temu</span>
-          <span class="trustBadge">Walmart</span><span class="trustBadge">Etsy</span>
-          <span class="trustBadge">Best Buy</span><span class="trustBadge">Target</span>
+          <span class="trustBadge">Amazon</span>
+          <span class="trustBadge">eBay</span>
+          <span class="trustBadge">AliExpress</span>
+          <span class="trustBadge">Shopee</span>
+          <span class="trustBadge">Lazada</span>
+          <span class="trustBadge">Temu</span>
+          <span class="trustBadge">Walmart</span>
+          <span class="trustBadge">Etsy</span>
+          <span class="trustBadge">Best Buy</span>
+          <span class="trustBadge">Target</span>
           <span class="smallNote">We prioritize safety. Buying elsewhere may be cheaper, but not guaranteed safe.</span>
         </div>
       </div>
@@ -194,6 +189,6 @@
     </div>
   </div>
 
-  <script defer src="script.js?v=42"></script>
+  <script defer src="script.js?v=40"></script>
 </body>
 </html>
