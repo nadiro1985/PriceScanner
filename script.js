@@ -1,11 +1,10 @@
 // === CONFIG / STATE ===
 const WORKER_BASE = "https://pricescanner.b48rptrywg.workers.dev";
-const EBAY_API    = WORKER_BASE; // search endpoint uses /?q=...
 
-// 10 vendors (display name + slug for Worker route)
+// 10 vendors (display name + slug used by Worker: /search/<slug>)
 const vendorDefs = [
   { name: "Amazon",    slug: "amazon" },
-  { name: "eBay",      slug: "ebay" },        // special: API search
+  { name: "eBay",      slug: "ebay" },
   { name: "AliExpress",slug: "aliexpress" },
   { name: "Shopee",    slug: "shopee" },
   { name: "Lazada",    slug: "lazada" },
@@ -27,7 +26,6 @@ let watches     = JSON.parse(localStorage.getItem('ps.watches')||"[]");
 let lang        = localStorage.getItem('ps.lang') || 'en';
 let lastFocusedEl = null;
 
-// store offers per vendor
 const offersByVendor = Object.fromEntries(vendorDefs.map(v => [v.name, []]));
 
 // i18n
@@ -65,8 +63,6 @@ function convertAmount(amount, fromCur){ const from=(fromCur||"USD").toUpperCase
   if(from===to) return amount; const r=fx.rates||{}; const rFrom=(from===fx.base)?1:r[from]; const rTo=(to===fx.base)?1:r[to];
   if(!rFrom||!rTo) return amount; return amount*(rTo/rFrom); }
 function priceInSelected(o){ return convertAmount(o.price, o.currency||"USD"); }
-
-// shipping estimate per vendor
 function estimateShipDays(vendor,country){
   const fast = new Set(["eBay","Amazon","Best Buy","Target","Walmart","Lazada"]);
   const intl = new Set(["Shopee","AliExpress","Temu","Etsy"]);
@@ -75,7 +71,7 @@ function estimateShipDays(vendor,country){
   return 10;
 }
 
-// OUT link builder (click wrapper)
+// build /out wrapper URL for clicks
 function outUrl(item){
   const r = localStorage.getItem('ps.ref') || '';
   const params = new URLSearchParams({
@@ -89,35 +85,22 @@ function outUrl(item){
 }
 
 // loaders
-async function loadEbay(q){
-  offersByVendor["eBay"] = [];
-  const term=(q||"").trim(); if(!enabled.includes("eBay")||!EBAY_API||!term) return;
-  try{
-    const join=EBAY_API.includes("?")?"&":"?"; const r=await fetch(EBAY_API+join+"q="+encodeURIComponent(term),{mode:"cors",cache:"no-store"});
-    if(!r.ok){ console.warn("eBay API error",r.status); return; }
-    const d=await r.json();
-    const arr=(Array.isArray(d.results)?d.results:[]).map(o=>({...o,currency:o.currency||"USD",shipDays:estimateShipDays("eBay",userCountry)}));
-    offersByVendor["eBay"] = arr;
-  }catch(e){ console.warn("eBay API fetch failed:",e); }
-}
-
-async function loadVendorFeed(vendor){
+async function loadVendor(vendor){
   const def = vendorDefs.find(v => v.name === vendor); if (!def) return;
   offersByVendor[vendor] = [];
   const term=(query||"").trim(); if(!enabled.includes(vendor)||!WORKER_BASE||!term) return;
   try{
-    const r=await fetch(`${WORKER_BASE}/feed/${def.slug}?q=`+encodeURIComponent(term),{mode:"cors",cache:"no-store"});
+    const r=await fetch(`${WORKER_BASE}/search/${def.slug}?q=`+encodeURIComponent(term),{mode:"cors",cache:"no-store"});
     const d=await r.json().catch(()=>({results:[]}));
-    if(!r.ok){ console.warn(`${vendor} feed error`, r.status, d); return; }
-    if (d.error) console.warn(`${vendor} feed note:`, d.error);
-    if (d.note)  console.info(`${vendor} feed note:`, d.note);
+    if(!r.ok){ console.warn(`${vendor} search error`, r.status, d); return; }
+    if (d.error) console.warn(`${vendor} search note:`, d.error);
+    if (d.note)  console.info(`${vendor} search note:`, d.note);
     const arr=(Array.isArray(d.results)?d.results:[]).map(o=>({...o,currency:o.currency||"USD",shipDays:estimateShipDays(vendor,userCountry),vendor}));
     offersByVendor[vendor] = arr;
     if (!arr.length) console.info(`${vendor}: 0 results for query:`, term);
-  }catch(e){ console.warn(`${vendor} feed fetch failed:`,e); }
+  }catch(e){ console.warn(`${vendor} search fetch failed:`,e); }
 }
 
-// merge & filter
 function currentResults(){
   let base = [];
   for (const v of vendorDefs.map(v=>v.name)) {
@@ -129,14 +112,12 @@ function currentResults(){
   if (sortBy==='priceDesc') base.sort((a,b)=> priceInSelected(b) - priceInSelected(a));
   if (sortBy==='rating')    base.sort((a,b)=> (b.rating||4.2) - (a.rating||4.2));
 
-  // dedupe (title+vendor) at lowest price
   const m=new Map();
   for(const o of base){ const k=((o.title||'')+'|'+o.vendor).toLowerCase(); const v=m.get(k);
     if(!v || priceInSelected(o) < priceInSelected(v)) m.set(k,o); }
   return Array.from(m.values());
 }
 
-// labels / RTL
 function renderLabels(){
   const setTxt = (id, key) => { const el=document.getElementById(id); if (el) el.textContent=t(key); };
   setTxt('lblLang','Lang'); setTxt('lblCurrency','Currency'); setTxt('lblSort','Sort');
@@ -145,7 +126,7 @@ function renderLabels(){
   document.documentElement.dir = (lang==='ar') ? 'rtl' : 'ltr';
 }
 
-// signup modal (accessible)
+// signup modal
 function initSignupUI(){
   const modal=$('#signupModal'), openBtn=$('#openSignup'), closeBtn=$('#suClose'),
         step1=$('#signupStep1'), step2=$('#signupStep2'), msg=$('#signupMsg'),
@@ -202,12 +183,12 @@ function initSignupUI(){
         localStorage.setItem('ps.email',email);
         if(msg) msg.textContent='Verified! Enable email alerts in your watchlist.';
         setTimeout(()=>{ closeModal(); },1200);
-      } else { if(msg) msg.textContent=out.error||'Invalid code.'; }
+      } else { if(msg) msg.textContent='Invalid code.'; }
     }catch{ if(msg) msg.textContent='Network error.'; }
   };
 }
 
-// save watchlist to server (discount-only)
+// save watchlist to server
 async function pushWatchlistToServer(){
   const email=localStorage.getItem('ps.email')||''; if(!email) return;
   const payload={ email, watches: watches.filter(w=>w.emailOpt&&typeof w.discountPct==='number').map(w=>({ title:w.title, vendors:w.vendors, discountPct:w.discountPct })) };
@@ -219,7 +200,6 @@ async function pushWatchlistToServer(){
 function render(){
   renderLabels();
 
-  // sources toggles
   const srcWrap = $('#sources'); srcWrap.innerHTML='';
   vendorDefs.forEach(v=>{ const on=enabled.includes(v.name);
     const b=document.createElement('button'); b.className='badge'; b.style.background=on?'#ecfdf5':'#fff7ed';
@@ -318,11 +298,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
 
   $('#search').oninput=(e)=>{ query=e.target.value; localStorage.setItem('ps.lastQuery',query);
     clearTimeout(debounce); debounce=setTimeout(async()=>{
-      const tasks = [];
-      for (const v of vendorDefs) {
-        if (v.name === "eBay") tasks.push(loadEbay(query));
-        else tasks.push(loadVendorFeed(v.name));
-      }
+      const tasks = vendorDefs.map(v => loadVendor(v.name));
       await Promise.all(tasks);
       render();
     },250); };
@@ -333,11 +309,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
 
   const startTerm=defaultQuery(); query=startTerm; const se=$('#search'); if(se) se.value=startTerm;
 
-  const tasks = [];
-  for (const v of vendorDefs) {
-    if (v.name === "eBay") tasks.push(loadEbay(query));
-    else tasks.push(loadVendorFeed(v.name));
-  }
+  const tasks = vendorDefs.map(v => loadVendor(v.name));
   await Promise.all(tasks);
   render();
 });
