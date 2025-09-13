@@ -1,21 +1,17 @@
 // === CONFIG / STATE ===
 const WORKER_BASE = "https://pricescanner.b48rptrywg.workers.dev";
-const EBAY_API = WORKER_BASE; // still available if you keep eBay enabled
+const EBAY_API = WORKER_BASE; // search endpoint uses /?q=...
 
-const vendors = ["Amazon","eBay","Walmart","AliExpress","Etsy","Rakuten","Shopee","Lazada","Temu","MercadoLibre","BestBuy","Target","Taobao","Alibaba","Wayfair"];
-let enabled     = [...vendors];
-if (!enabled.includes("eBay")) enabled.push("eBay");     // keep eBay
-if (!enabled.includes("Amazon")) enabled.push("Amazon"); // add Amazon
+// Only eBay + Shopee now
+const vendors = ["eBay","Shopee"];
+let enabled     = [...vendors]; // both ON by default
 
 let currency    = "SGD";
 let sortBy      = "priceAsc";
 let query       = "";
-let offers      = [];          // demo/base offers
+let offers      = [];          // demo/base offers (still used for other vendors in demo.json if you want)
 let ebayOffers  = [];          // live eBay offers
-let amazonOffers= [];          // live Amazon offers
-let aliOffers   = [];          // AliExpress from feed
-let shopeeOffers= [];          // Shopee from feed
-let temuOffers  = [];          // Temu from feed
+let shopeeOffers= [];          // Shopee feed offers
 let userCountry = "US";
 let maxShipDays = "";
 let fx          = { base:"USD", rates:{ USD:1 }, at:0 };
@@ -54,16 +50,22 @@ function convertAmount(amount, fromCur){ const from=(fromCur||"USD").toUpperCase
   if(from===to) return amount; const r=fx.rates||{}; const rFrom=(from===fx.base)?1:r[from]; const rTo=(to===fx.base)?1:r[to];
   if(!rFrom||!rTo) return amount; return amount*(rTo/rFrom); }
 function priceInSelected(o){ return convertAmount(o.price, o.currency||"USD"); }
-function estimateShipDays(vendor,country){ const fast=["Amazon","eBay","Walmart","BestBuy","Target"]; const intl=["Shopee","Lazada","AliExpress","Temu","Taobao","Alibaba","MercadoLibre","Rakuten"];
-  if(fast.includes(vendor)) return (["SG","US","GB"].includes(country))?3:7; if(intl.includes(vendor)) return (country==="SG")?7:14; return 10; }
+function estimateShipDays(vendor,country){ const fast=["eBay"]; const intl=["Shopee"];
+  if(fast.includes(vendor)) return (["SG","US","GB"].includes(country))?3:7;
+  if(intl.includes(vendor)) return (country==="SG")?7:14;
+  return 10; }
 
 // data loaders
 async function loadDemo(){
-  try{ const r=await fetch('demo.json',{cache:"no-store"}); if(!r.ok) throw new Error('demo.json not found');
-    offers=(await r.json()).map(o=>({...o,currency:o.currency||"USD",shipDays:o.shipDays||estimateShipDays(o.vendor,userCountry)}));
-  }catch(e){ console.error('Failed to load demo.json:',e);
-    offers=[{id:'Fallback-1',title:'Sample Headphones',image:'https://images.unsplash.com/photo-1518441315835-06e9d3e8de1c?q=80&w=1200&auto=format&fit=crop',
-      price:59.99,currency:"USD",shipping:'Free',shipTime:'3–7 days',rating:4.4,vendor:'Amazon',url:'#',shipDays:estimateShipDays('Amazon',userCountry)}]; }
+  try{
+    const r=await fetch('demo.json',{cache:"no-store"});
+    if(r.ok){
+      const raw=await r.json();
+      // keep only any eBay/Shopee items in demo (optional)
+      offers=raw.filter(x=>["eBay","Shopee"].includes(x.vendor))
+                .map(o=>({...o,currency:o.currency||"USD",shipDays:o.shipDays||estimateShipDays(o.vendor,userCountry)}));
+    } else { offers=[]; }
+  }catch{ offers=[]; }
 }
 async function loadEbay(q){
   ebayOffers=[]; const term=(q||"").trim(); if(!enabled.includes("eBay")||!EBAY_API||!term) return;
@@ -72,43 +74,29 @@ async function loadEbay(q){
     ebayOffers=(Array.isArray(d.results)?d.results:[]).map(o=>({...o,currency:o.currency||"USD",shipDays:estimateShipDays("eBay",userCountry)}));
   }catch(e){ console.warn("eBay API fetch failed:",e); }
 }
-async function loadAmazon(q){
-  amazonOffers=[]; const term=(q||"").trim(); if(!enabled.includes("Amazon")||!WORKER_BASE||!term) return;
-  try{ const r=await fetch(`${WORKER_BASE}/amazon?q=`+encodeURIComponent(term),{mode:"cors",cache:"no-store"});
-    if(!r.ok){ console.warn("Amazon API error",r.status); return; } const d=await r.json();
-    amazonOffers=(Array.isArray(d.results)?d.results:[]).map(o=>({...o,shipDays:estimateShipDays("Amazon",userCountry)}));
-  }catch(e){ console.warn("Amazon API fetch failed:",e); }
+async function loadShopee(q){
+  shopeeOffers=[]; const term=(q||"").trim(); if(!enabled.includes("Shopee")||!WORKER_BASE||!term) return;
+  try{ const r=await fetch(`${WORKER_BASE}/feed/shopee?q=`+encodeURIComponent(term),{mode:"cors",cache:"no-store"});
+    if(!r.ok){ console.warn("Shopee feed error",r.status); return; } const d=await r.json();
+    shopeeOffers=(Array.isArray(d.results)?d.results:[]).map(o=>({...o,currency:o.currency||"USD",shipDays:estimateShipDays("Shopee",userCountry)}));
+  }catch(e){ console.warn("Shopee feed fetch failed:",e); }
 }
-
-// feeds (AliExpress/Shopee/Temu): the Worker reads your affiliate JSON feeds
-async function loadFeed(source, q){
-  const term=(q||"").trim(); if(!term) return [];
-  try{ const r=await fetch(`${WORKER_BASE}/feed/${source}?q=`+encodeURIComponent(term),{mode:"cors",cache:"no-store"});
-    if(!r.ok) return []; const d=await r.json(); return Array.isArray(d.results)?d.results:[];
-  }catch{ return []; }
-}
-async function loadAli(q){ aliOffers   = await loadFeed("aliexpress", q); }
-async function loadShopee(q){ shopeeOffers= await loadFeed("shopee", q); }
-async function loadTemu(q){ temuOffers  = await loadFeed("temu", q); }
 
 // merge & filter
 function currentResults(){
-  let base = offers.filter(o => enabled.includes(o.vendor));
-  if (enabled.includes("eBay"))    base = base.filter(o=>o.vendor!=="eBay").concat(ebayOffers);
-  if (enabled.includes("Amazon"))  base = base.filter(o=>o.vendor!=="Amazon").concat(amazonOffers);
-  if (enabled.includes("AliExpress")) base = base.filter(o=>o.vendor!=="AliExpress").concat(aliOffers);
-  if (enabled.includes("Shopee"))    base = base.filter(o=>o.vendor!=="Shopee").concat(shopeeOffers);
-  if (enabled.includes("Temu"))      base = base.filter(o=>o.vendor!=="Temu").concat(temuOffers);
+  let base = []; // we’ll rely on live eBay + Shopee; you can concat offers (demo) if you want
+  if (enabled.includes("eBay"))    base = base.concat(ebayOffers);
+  if (enabled.includes("Shopee"))  base = base.concat(shopeeOffers);
 
-  if (query) base = base.filter(o => o.title.toLowerCase().includes(query.toLowerCase()));
+  if (query) base = base.filter(o => (o.title||"").toLowerCase().includes(query.toLowerCase()));
   if (maxShipDays) base = base.filter(o => (o.shipDays||estimateShipDays(o.vendor,userCountry)) <= Number(maxShipDays));
   if (sortBy==='priceAsc')  base.sort((a,b)=> priceInSelected(a) - priceInSelected(b));
   if (sortBy==='priceDesc') base.sort((a,b)=> priceInSelected(b) - priceInSelected(a));
-  if (sortBy==='rating')    base.sort((a,b)=> b.rating - a.rating);
+  if (sortBy==='rating')    base.sort((a,b)=> (b.rating||4.2) - (a.rating||4.2));
 
   // dedupe (title+vendor) at lowest price
   const m=new Map();
-  for(const o of base){ const k=(o.title+'|'+o.vendor).toLowerCase(); const v=m.get(k);
+  for(const o of base){ const k=((o.title||'')+'|'+o.vendor).toLowerCase(); const v=m.get(k);
     if(!v || priceInSelected(o) < priceInSelected(v)) m.set(k,o); }
   return Array.from(m.values());
 }
@@ -146,7 +134,7 @@ function initSignupUI(){
   };
 }
 
-// watchlist save to server (discount-only)
+// save watchlist to server (discount-only)
 async function pushWatchlistToServer(){
   const email=localStorage.getItem('ps.email')||''; if(!email) return;
   const payload={ email, watches: watches.filter(w=>w.emailOpt&&typeof w.discountPct==='number').map(w=>({ title:w.title, vendors:w.vendors, discountPct:w.discountPct })) };
@@ -154,7 +142,7 @@ async function pushWatchlistToServer(){
   try{ await fetch(`${WORKER_BASE}/watchlist`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)}); }catch{}
 }
 
-// render UI + items
+// render items + watchlist
 function render(){
   renderLabels();
 
@@ -195,7 +183,6 @@ function render(){
     grid.appendChild(card);
   });
 
-  // watchlist
   const list = $('#watchlist'); list.innerHTML = watches.length ? '' : '<div style="font-size:14px;color:#6b7280">No watched items yet.</div>';
   watches.forEach(w=>{
     const row=document.createElement('div'); row.className='card'; row.style.border='1px solid rgba(0,0,0,.08)';
@@ -254,7 +241,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   $('#shipMax').onchange=(e)=>{ maxShipDays=e.target.value; render(); }
 
   $('#search').oninput=(e)=>{ query=e.target.value; localStorage.setItem('ps.lastQuery',query);
-    clearTimeout(debounce); debounce=setTimeout(async()=>{ await Promise.all([loadEbay(query),loadAmazon(query),loadAli(query),loadShopee(query),loadTemu(query)]); render(); },250); };
+    clearTimeout(debounce); debounce=setTimeout(async()=>{ await Promise.all([loadEbay(query),loadShopee(query)]); render(); },250); };
   $('#searchBtn').onclick=()=>{ const input=$('#search'); if(input){ input.dispatchEvent(new Event('input',{bubbles:true})); } }
   $('#refreshBtn').onclick=refreshWatches;
 
@@ -262,7 +249,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
 
   const startTerm=defaultQuery(); query=startTerm; const se=$('#search'); if(se) se.value=startTerm;
 
-  await loadDemo();
-  await Promise.all([loadEbay(query),loadAmazon(query),loadAli(query),loadShopee(query),loadTemu(query)]);
+  await loadDemo(); // optional demo; can remove if you want only live
+  await Promise.all([loadEbay(query),loadShopee(query)]);
   render();
 });
