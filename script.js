@@ -1,17 +1,24 @@
 // === CONFIG / STATE ===
-const vendors = ["Amazon","eBay","Walmart","AliExpress","Etsy","Rakuten","Shopee","Lazada","Temu","MercadoLibre","BestBuy","Target","Taobao","Alibaba","Wayfair"];
-let enabled = [...vendors];
-let currency = "SGD";
-let sortBy = "priceAsc";
-let query = "";
-let offers = [];          // demo/base offers
-let ebayOffers = [];      // live eBay offers (from Vercel API)
-let userCountry = "US";   // simple default
-let maxShipDays = "";     // shipping filter
-let fx = { base: "USD", rates: { USD: 1 }, at: 0 };
-let watches = JSON.parse(localStorage.getItem('ps.watches')||"[]");
+// base URL to reach your Worker root (no trailing path)
+const WORKER_BASE = "https://pricescanner.b48rptrywg.workers.dev";
 
-// Five-language UI labels (short)
+// eBay search endpoint (we use the root + ?q=...)
+const EBAY_API = WORKER_BASE;
+console.log("Using EBAY_API =", EBAY_API);
+
+const vendors = ["Amazon","eBay","Walmart","AliExpress","Etsy","Rakuten","Shopee","Lazada","Temu","MercadoLibre","BestBuy","Target","Taobao","Alibaba","Wayfair"];
+let enabled     = [...vendors];
+let currency    = "SGD";
+let sortBy      = "priceAsc";
+let query       = "";
+let offers      = [];          // demo/base offers
+let ebayOffers  = [];          // live eBay offers
+let userCountry = "US";        // simple default
+let maxShipDays = "";          // shipping filter
+let fx          = { base: "USD", rates: { USD: 1 }, at: 0 };
+let watches     = JSON.parse(localStorage.getItem('ps.watches')||"[]");
+
+// UI labels (short)
 const i18n = {
   en:{Lang:"Language",Currency:"Currency",Sort:"Sort by",Sources:"Sources",Watchlist:"Watchlist",Refresh:"Refresh",MaxShip:"Max ship days"},
   ar:{Lang:"اللغة",Currency:"العملة",Sort:"ترتيب حسب",Sources:"المصادر",Watchlist:"قائمة المراقبة",Refresh:"تحديث",MaxShip:"أقصى أيام للشحن"},
@@ -21,17 +28,21 @@ const i18n = {
 };
 let lang = localStorage.getItem('ps.lang') || 'en';
 
-// >>> Set this to your Vercel API URL <<<
-const EBAY_API = "https://pricescanner.b48rptrywg.workers.dev"; // change if your project URL differs
-console.log("Using EBAY_API =", EBAY_API);
-
-// Trending terms (used when no history)
+// Trending terms (for first load if no history)
 const trending = ["headphones","iphone","ssd","laptop","smartwatch","wireless earbuds","gaming mouse","4K TV","backpack"];
 
 // === HELPERS ===
-function fmt(n){ try{ return new Intl.NumberFormat(currency==='SGD'?'en-SG':'en',{style:'currency',currency}).format(n) }catch(e){ return Number(n).toFixed(2)} }
+function fmt(n){
+  try{ return new Intl.NumberFormat(currency==='SGD'?'en-SG':'en',{style:'currency',currency}).format(n) }
+  catch(e){ return Number(n).toFixed(2) }
+}
 const $ = sel => document.querySelector(sel);
 function t(k){ return (i18n[lang] && i18n[lang][k]) || i18n.en[k] || k; }
+function show(el, on){ if (el) el.style.display = on ? 'flex' : 'none'; }
+async function postJSON(url, data){
+  const r = await fetch(url, { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify(data) });
+  return r.json();
+}
 
 // Guess country from browser locale (fallback only)
 (function(){ try{
@@ -134,7 +145,70 @@ function renderLabels(){
   $('#lblWatchlist').textContent= t('Watchlist');
   $('#refreshBtn').textContent  = t('Refresh');
   $('#lblShip').textContent     = t('MaxShip');
-  document.documentElement.dir = (lang==='ar') ? 'rtl' : 'ltr';
+  document.documentElement.dir  = (lang==='ar') ? 'rtl' : 'ltr';
+}
+
+// === SIGNUP (email) — one-time verification ===
+function initSignupUI() {
+  const modal   = document.getElementById('signupModal');
+  const openBtn = document.getElementById('openSignup');
+  const closeBtn= document.getElementById('suClose');
+  const step1   = document.getElementById('signupStep1');
+  const step2   = document.getElementById('signupStep2');
+  const msg     = document.getElementById('signupMsg');
+  const emailEl = document.getElementById('suEmail');
+  const codeEl  = document.getElementById('suCode');
+  const sendBtn = document.getElementById('suSend');
+  const verifyBtn=document.getElementById('suVerify');
+
+  if (!openBtn || !modal) return; // modal not present in HTML—skip quietly
+
+  openBtn.onclick  = ()=>{ if(msg){msg.textContent='';} if(step1) step1.style.display='block'; if(step2) step2.style.display='none'; show(modal, true); };
+  if (closeBtn) closeBtn.onclick = ()=> show(modal, false);
+
+  if (sendBtn) sendBtn.onclick = async ()=>{
+    const email = (emailEl?.value||'').trim().toLowerCase();
+    if (!email || !email.includes('@')) { if(msg) msg.textContent='Enter a valid email.'; return; }
+    try{
+      const out = await postJSON(`${WORKER_BASE}/signup`, { email });
+      if (out.ok) {
+        if (msg) msg.textContent = out.emailed ? 'Code sent to your email.' : `Dev code: ${out.devCode}`;
+        if (step1) step1.style.display='none'; if(step2) step2.style.display='block';
+      } else { if(msg) msg.textContent = out.error||'Could not send code.'; }
+    }catch(e){ if(msg) msg.textContent='Network error.'; }
+  };
+
+  if (verifyBtn) verifyBtn.onclick = async ()=>{
+    const email = (emailEl?.value||'').trim().toLowerCase();
+    const code  = (codeEl?.value ||'').trim();
+    if (!code) { if(msg) msg.textContent='Enter the 6-digit code.'; return; }
+    try{
+      const out = await postJSON(`${WORKER_BASE}/verify`, { email, code });
+      if (out.ok) {
+        localStorage.setItem('ps.email', email);
+        if(msg) msg.textContent='Verified! Enable email alerts in your watchlist.';
+        setTimeout(()=> show(modal, false), 1200);
+      } else { if(msg) msg.textContent = out.error||'Invalid code.'; }
+    }catch(e){ if(msg) msg.textContent='Network error.'; }
+  };
+}
+
+// Push discount-only watches (where user ticked email alerts) to Worker
+async function pushWatchlistToServer(){
+  const email = localStorage.getItem('ps.email') || '';
+  if (!email) return; // user not verified yet
+  const payload = {
+    email,
+    watches: watches
+      .filter(w => w.emailOpt && typeof w.discountPct === 'number')
+      .map(w => ({ title: w.title, vendors: w.vendors, discountPct: w.discountPct }))
+  };
+  if (!payload.watches.length) return;
+  try{
+    await fetch(`${WORKER_BASE}/watchlist`, {
+      method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify(payload)
+    });
+  }catch(e){ /* ignore network errors silently */ }
 }
 
 // render UI
@@ -182,7 +256,7 @@ function render(){
     grid.appendChild(card);
   });
 
-  // watchlist
+  // watchlist (discount-only + email alerts)
   const list = $('#watchlist'); list.innerHTML = watches.length ? '' : '<div style="font-size:14px;color:#6b7280">No watched items yet.</div>';
   watches.forEach(w=>{
     const row = document.createElement('div'); row.className='card'; row.style.border='1px solid rgba(0,0,0,.08)';
@@ -191,24 +265,25 @@ function render(){
         <div style="font-weight:700">${w.title}</div>
         <div style="font-size:12px;color:#6b7280">Baseline: ${w.baseline??'—'} • Last: ${w.last??'—'} • ${w.triggered?'Triggered':'Waiting'}</div>
         <div class="row" style="margin-top:8px;align-items:center">
-          <input type="number" class="input target" placeholder="Target price (${currency})" value="${w.targetPrice??''}"/>
           <input type="number" class="input discount" placeholder="Discount % from baseline" value="${w.discountPct??''}"/>
+          <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" class="emailOpt"${w.emailOpt?' checked':''}/> email alerts</label>
           <button class="btn remove">Remove</button>
         </div>
       </div>`;
-    row.querySelector('.target').oninput = (e)=>{ w.targetPrice = Number(e.target.value); saveWatches(); }
-    row.querySelector('.discount').oninput = (e)=>{ w.discountPct = Number(e.target.value); saveWatches(); }
-    row.querySelector('.remove').onclick = ()=>{ watches = watches.filter(x=>x!==w); saveWatches(); render(); }
+    // handlers
+    row.querySelector('.discount').oninput = async (e)=>{ w.discountPct = Number(e.target.value); saveWatches(); await pushWatchlistToServer(); };
+    row.querySelector('.emailOpt').onchange = async (e)=>{ w.emailOpt = e.target.checked; saveWatches(); await pushWatchlistToServer(); };
+    row.querySelector('.remove').onclick = ()=>{ watches = watches.filter(x=>x!==w); saveWatches(); render(); };
     list.appendChild(row);
   });
 }
 
-// watchlist helpers
+// watchlist helpers (now discount-only)
 function saveWatches(){ localStorage.setItem('ps.watches', JSON.stringify(watches)) }
 function addWatch(item){
   const id = (item.title + '|' + enabled.sort().join(',')).toLowerCase();
   if (watches.find(w=>w.id===id)) { toast('Already in watchlist'); return }
-  watches = [{ id, title:item.title, vendors:[...enabled], targetPrice:Math.max(0, priceInSelected(item)-1) }, ...watches];
+  watches = [{ id, title:item.title, vendors:[...enabled], discountPct: 15, emailOpt:false }, ...watches]; // default 15%
   saveWatches(); toast('Added to watchlist'); render();
 }
 async function refreshWatches(){
@@ -220,9 +295,8 @@ async function refreshWatches(){
     const best = pool.reduce((a,b)=> priceInSelected(a) <= priceInSelected(b) ? a : b);
     const baseline = w.baseline ?? priceInSelected(best);
     const discount = baseline>0 ? ((baseline-priceInSelected(best))/baseline)*100 : 0;
-    const priceTrig = typeof w.targetPrice==='number' && priceInSelected(best) <= w.targetPrice;
     const discTrig  = typeof w.discountPct==='number' && discount >= (w.discountPct||0);
-    const trig = priceTrig || discTrig;
+    const trig = discTrig; // discount-only
     if (trig && !w.triggered) msg = `${w.title} @ ${best.vendor} → ${fmt(priceInSelected(best))}`;
     if (trig!==!!w.triggered || w.last!==priceInSelected(best) || w.lastVendor!==best.vendor || w.baseline!==baseline) changed=true;
     return {...w, baseline, last:priceInSelected(best), lastVendor:best.vendor, triggered:trig};
@@ -231,7 +305,7 @@ async function refreshWatches(){
   if (msg) toast(msg);
   render();
 }
-function toast(m){ const t = $('#toast'); t.textContent=m; t.style.display='block'; setTimeout(()=>t.style.display='none', 3500) }
+function toast(m){ const t = $('#toast'); if (!t) return; t.textContent=m; t.style.display='block'; setTimeout(()=>t.style.display='none', 3500) }
 
 // personalization
 function captureReferral(){
@@ -261,6 +335,9 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   $('#searchBtn').onclick = ()=>{ const input=$('#search'); if(input){ input.dispatchEvent(new Event('input',{bubbles:true})); } }
   // watchlist
   $('#refreshBtn').onclick = refreshWatches;
+
+  // signup/verify modal (safe if not present)
+  initSignupUI();
 
   captureReferral();
   await loadRates();
