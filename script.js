@@ -2,22 +2,33 @@
 const WORKER_BASE = "https://pricescanner.b48rptrywg.workers.dev";
 const EBAY_API    = WORKER_BASE; // search endpoint uses /?q=...
 
-// Only eBay + Shopee now
-const vendors = ["eBay","Shopee"];
-let enabled     = [...vendors]; // both ON by default
+// 10 vendors (display name + slug for Worker route)
+const vendorDefs = [
+  { name: "Amazon",    slug: "amazon" },
+  { name: "eBay",      slug: "ebay" },        // special: API search
+  { name: "AliExpress",slug: "aliexpress" },
+  { name: "Shopee",    slug: "shopee" },
+  { name: "Lazada",    slug: "lazada" },
+  { name: "Temu",      slug: "temu" },
+  { name: "Walmart",   slug: "walmart" },
+  { name: "Etsy",      slug: "etsy" },
+  { name: "Best Buy",  slug: "bestbuy" },
+  { name: "Target",    slug: "target" },
+];
+let enabled       = vendorDefs.map(v => v.name); // all ON by default
 
 let currency    = "SGD";
 let sortBy      = "priceAsc";
 let query       = "";
-let offers      = [];
-let ebayOffers  = [];
-let shopeeOffers= [];
 let userCountry = "US";
 let maxShipDays = "";
 let fx          = { base:"USD", rates:{ USD:1 }, at:0 };
 let watches     = JSON.parse(localStorage.getItem('ps.watches')||"[]");
 let lang        = localStorage.getItem('ps.lang') || 'en';
 let lastFocusedEl = null;
+
+// store offers per vendor
+const offersByVendor = Object.fromEntries(vendorDefs.map(v => [v.name, []]));
 
 // i18n
 const i18n = {
@@ -46,7 +57,6 @@ async function loadRates() {
     const d = await r.json(); const rates=d.rates||{}; rates.USD=1; fx={base:"USD",rates,at:Date.now()};
     localStorage.setItem('ps.fx', JSON.stringify(fx));
   }catch(e){
-    // keep old cache for up to 72h
     const cached = JSON.parse(localStorage.getItem('ps.fx')||'null');
     if (cached && (Date.now()-cached.at) < 72*60*60*1000) { fx=cached; }
   }
@@ -55,49 +65,51 @@ function convertAmount(amount, fromCur){ const from=(fromCur||"USD").toUpperCase
   if(from===to) return amount; const r=fx.rates||{}; const rFrom=(from===fx.base)?1:r[from]; const rTo=(to===fx.base)?1:r[to];
   if(!rFrom||!rTo) return amount; return amount*(rTo/rFrom); }
 function priceInSelected(o){ return convertAmount(o.price, o.currency||"USD"); }
-function estimateShipDays(vendor,country){ const fast=["eBay"]; const intl=["Shopee"];
-  if(fast.includes(vendor)) return (["SG","US","GB"].includes(country))?3:7;
-  if(intl.includes(vendor)) return (country==="SG")?7:14;
-  return 10; }
 
-// data loaders
-async function loadDemo(){
-  try{
-    const r=await fetch('demo.json',{cache:"no-store"});
-    if(r.ok){
-      const raw=await r.json();
-      offers=raw.filter(x=>["eBay","Shopee"].includes(x.vendor))
-                .map(o=>({...o,currency:o.currency||"USD",shipDays:o.shipDays||estimateShipDays(o.vendor,userCountry)}));
-    } else { offers=[]; }
-  }catch{ offers=[]; }
+// shipping estimate per vendor
+function estimateShipDays(vendor,country){
+  const fast = new Set(["eBay","Amazon","Best Buy","Target","Walmart","Lazada"]);
+  const intl = new Set(["Shopee","AliExpress","Temu","Etsy"]);
+  if (fast.has(vendor)) return (["SG","US","GB"].includes(country))?3:7;
+  if (intl.has(vendor)) return (country==="SG")?7:14;
+  return 10;
 }
+
+// loaders
 async function loadEbay(q){
-  ebayOffers=[]; const term=(q||"").trim(); if(!enabled.includes("eBay")||!EBAY_API||!term) return;
+  offersByVendor["eBay"] = [];
+  const term=(q||"").trim(); if(!enabled.includes("eBay")||!EBAY_API||!term) return;
   try{
     const join=EBAY_API.includes("?")?"&":"?"; const r=await fetch(EBAY_API+join+"q="+encodeURIComponent(term),{mode:"cors",cache:"no-store"});
-    if(!r.ok){ console.warn("eBay API error",r.status); return; } const d=await r.json();
-    ebayOffers=(Array.isArray(d.results)?d.results:[]).map(o=>({...o,currency:o.currency||"USD",shipDays:estimateShipDays("eBay",userCountry)}));
+    if(!r.ok){ console.warn("eBay API error",r.status); return; }
+    const d=await r.json();
+    const arr=(Array.isArray(d.results)?d.results:[]).map(o=>({...o,currency:o.currency||"USD",shipDays:estimateShipDays("eBay",userCountry)}));
+    offersByVendor["eBay"] = arr;
   }catch(e){ console.warn("eBay API fetch failed:",e); }
 }
-async function loadShopee(q){
-  shopeeOffers=[]; const term=(q||"").trim(); if(!enabled.includes("Shopee")||!WORKER_BASE||!term) return;
+
+async function loadVendorFeed(vendor){
+  const def = vendorDefs.find(v => v.name === vendor); if (!def) return;
+  offersByVendor[vendor] = [];
+  const term=(query||"").trim(); if(!enabled.includes(vendor)||!WORKER_BASE||!term) return;
   try{
-    const r=await fetch(`${WORKER_BASE}/feed/shopee?q=`+encodeURIComponent(term),{mode:"cors",cache:"no-store"});
+    const r=await fetch(`${WORKER_BASE}/feed/${def.slug}?q=`+encodeURIComponent(term),{mode:"cors",cache:"no-store"});
     const d=await r.json().catch(()=>({results:[]}));
-    if(!r.ok){ console.warn("Shopee feed error", r.status, d); return; }
-    if (d.error) console.warn("Shopee feed note:", d.error);
-    if (d.note)  console.info("Shopee feed note:", d.note);
-    shopeeOffers=(Array.isArray(d.results)?d.results:[]).map(o=>({...o,currency:o.currency||"USD",shipDays:estimateShipDays("Shopee",userCountry)}));
-    if (!shopeeOffers.length) console.info("Shopee: 0 results for query:", term);
-  }catch(e){ console.warn("Shopee feed fetch failed:",e); }
+    if(!r.ok){ console.warn(`${vendor} feed error`, r.status, d); return; }
+    if (d.error) console.warn(`${vendor} feed note:`, d.error);
+    if (d.note)  console.info(`${vendor} feed note:`, d.note);
+    const arr=(Array.isArray(d.results)?d.results:[]).map(o=>({...o,currency:o.currency||"USD",shipDays:estimateShipDays(vendor,userCountry),vendor}));
+    offersByVendor[vendor] = arr;
+    if (!arr.length) console.info(`${vendor}: 0 results for query:`, term);
+  }catch(e){ console.warn(`${vendor} feed fetch failed:`,e); }
 }
 
 // merge & filter
 function currentResults(){
   let base = [];
-  if (enabled.includes("eBay"))    base = base.concat(ebayOffers);
-  if (enabled.includes("Shopee"))  base = base.concat(shopeeOffers);
-
+  for (const v of vendorDefs.map(v=>v.name)) {
+    if (enabled.includes(v)) base = base.concat(offersByVendor[v]||[]);
+  }
   if (query) base = base.filter(o => (o.title||"").toLowerCase().includes(query.toLowerCase()));
   if (maxShipDays) base = base.filter(o => (o.shipDays||estimateShipDays(o.vendor,userCountry)) <= Number(maxShipDays));
   if (sortBy==='priceAsc')  base.sort((a,b)=> priceInSelected(a) - priceInSelected(b));
@@ -111,7 +123,7 @@ function currentResults(){
   return Array.from(m.values());
 }
 
-// labels / RTL (defensive)
+// labels / RTL
 function renderLabels(){
   const setTxt = (id, key) => { const el=document.getElementById(id); if (el) el.textContent=t(key); };
   setTxt('lblLang','Lang'); setTxt('lblCurrency','Currency'); setTxt('lblSort','Sort');
@@ -194,10 +206,11 @@ async function pushWatchlistToServer(){
 function render(){
   renderLabels();
 
+  // sources toggles
   const srcWrap = $('#sources'); srcWrap.innerHTML='';
-  vendors.forEach(v=>{ const on=enabled.includes(v);
+  vendorDefs.forEach(v=>{ const on=enabled.includes(v.name);
     const b=document.createElement('button'); b.className='badge'; b.style.background=on?'#ecfdf5':'#fff7ed';
-    b.textContent=(on?'✔ ':'✖ ')+v; b.onclick=()=>{ enabled=on?enabled.filter(x=>x!==v):[...enabled,v]; render(); }; srcWrap.appendChild(b); });
+    b.textContent=(on?'✔ ':'✖ ')+v.name; b.onclick=()=>{ enabled=on?enabled.filter(x=>x!==v.name):[...enabled,v.name]; render(); }; srcWrap.appendChild(b); });
 
   const data = currentResults();
   const grid = $('#grid'); grid.innerHTML='';
@@ -291,7 +304,16 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   $('#shipMax').onchange=(e)=>{ maxShipDays=e.target.value; render(); }
 
   $('#search').oninput=(e)=>{ query=e.target.value; localStorage.setItem('ps.lastQuery',query);
-    clearTimeout(debounce); debounce=setTimeout(async()=>{ await Promise.all([loadEbay(query),loadShopee(query)]); render(); },250); };
+    clearTimeout(debounce); debounce=setTimeout(async()=>{
+      // parallel loads
+      const tasks = [];
+      for (const v of vendorDefs) {
+        if (v.name === "eBay") tasks.push(loadEbay(query));
+        else tasks.push(loadVendorFeed(v.name));
+      }
+      await Promise.all(tasks);
+      render();
+    },250); };
   $('#searchBtn').onclick=()=>{ const input=$('#search'); if(input){ input.dispatchEvent(new Event('input',{bubbles:true})); } }
   $('#refreshBtn').onclick=refreshWatches;
 
@@ -300,7 +322,12 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   // Read '?q=' first if present
   const startTerm=defaultQuery(); query=startTerm; const se=$('#search'); if(se) se.value=startTerm;
 
-  await loadDemo(); // optional demo; can remove if you want only live
-  await Promise.all([loadEbay(query),loadShopee(query)]);
+  // initial fetch
+  const tasks = [];
+  for (const v of vendorDefs) {
+    if (v.name === "eBay") tasks.push(loadEbay(query));
+    else tasks.push(loadVendorFeed(v.name));
+  }
+  await Promise.all(tasks);
   render();
 });
