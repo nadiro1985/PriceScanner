@@ -8,6 +8,9 @@ console.log("Using EBAY_API =", EBAY_API);
 
 const vendors = ["Amazon","eBay","Walmart","AliExpress","Etsy","Rakuten","Shopee","Lazada","Temu","MercadoLibre","BestBuy","Target","Taobao","Alibaba","Wayfair"];
 let enabled     = [...vendors];
+// make sure eBay source is ON
+if (!enabled.includes("eBay")) enabled.push("eBay");
+
 let currency    = "SGD";
 let sortBy      = "priceAsc";
 let query       = "";
@@ -136,15 +139,20 @@ function defaultQuery(){
   return trending[Math.floor(Math.random()*trending.length)];
 }
 
-// labels / RTL
+// labels / RTL  (defensive: only set text if element exists)
 function renderLabels(){
-  $('#lblLang').textContent     = t('Lang');
-  $('#lblCurrency').textContent = t('Currency');
-  $('#lblSort').textContent     = t('Sort');
-  $('#lblSources').textContent  = t('Sources') + " (click to include/exclude):";
-  $('#lblWatchlist').textContent= t('Watchlist');
-  $('#refreshBtn').textContent  = t('Refresh');
-  $('#lblShip').textContent     = t('MaxShip');
+  const setTxt = (id, key) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = t(key);
+  };
+  setTxt('lblLang','Lang');
+  setTxt('lblCurrency','Currency');
+  setTxt('lblSort','Sort');
+  setTxt('lblSources','Sources');
+  setTxt('lblWatchlist','Watchlist');
+  setTxt('lblShip','MaxShip');
+  const rb = document.getElementById('refreshBtn');
+  if (rb) rb.textContent = t('Refresh');
   document.documentElement.dir  = (lang==='ar') ? 'rtl' : 'ltr';
 }
 
