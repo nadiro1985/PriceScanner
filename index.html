@@ -32,6 +32,14 @@
     .trustBadge{border:1px solid rgba(0,0,0,.1); border-radius:999px; padding:6px 10px; background:#fff}
     .appBadges{display:flex; gap:10px; align-items:center}
     .smallNote{font-size:12px; color:#64748b}
+
+    /* NEW: top bar with logo left, controls right */
+    .topBar{display:flex; align-items:center; gap:12px; margin-bottom:12px}
+    .spacer{flex:1}
+    .topControls{display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end}
+    .btn-sm{padding:.45rem .7rem; font-weight:700; border:1px solid rgba(0,0,0,.12); border-radius:12px; background:linear-gradient(90deg,var(--brand1,#4f46e5),var(--brand2,#7c3aed)); color:#fff}
+    .select.small{padding:.45rem .6rem; border-radius:12px; border:1px solid rgba(0,0,0,.12); background:#fff}
+    @media (max-width:640px){ .topControls{justify-content:flex-end} }
   </style>
 </head>
 <body>
@@ -40,12 +48,29 @@
       <!-- Optional small looping video; replace src with your own hero.mp4 or a CDN link -->
       <video autoplay muted loop playsinline src="hero.mp4"></video>
       <div class="heroContent">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+
+        <!-- NEW: top bar -->
+        <div class="topBar">
           <div class="logoWrap">
             <img id="brandLogo" src="logo.svg" alt="logo">
             <div id="brandName" class="logoText">PriceScanner</div>
           </div>
+          <div class="spacer"></div>
+          <div class="topControls">
+            <button id="openSignup" class="btn-sm" type="button" title="Sign in / Sign up for alerts">Sign in</button>
+            <label for="lang" class="sr-only" style="position:absolute;left:-9999px">Language</label>
+            <select id="lang" class="select small">
+              <option value="en">English</option><option value="ar">العربية</option>
+              <option value="fr">Français</option><option value="es">Español</option><option value="zh">中文</option>
+            </select>
+            <label for="currency" class="sr-only" style="position:absolute;left:-9999px">Currency</label>
+            <select id="currency" class="select small">
+              <option>SGD</option><option>USD</option><option>EUR</option>
+            </select>
+          </div>
         </div>
+        <!-- /NEW: top bar -->
+
         <h1 id="tagline" class="heroTitle" style="font-size:40px;margin:6px 0">Find the best price, fast</h1>
         <p style="color:#475569;max-width:780px">
           Search once, compare everywhere. We highlight offers from reliable platforms so your money stays safe.
@@ -55,16 +80,9 @@
           <input id="search" class="input" placeholder="Search products…" style="flex:1 1 auto">
           <button id="searchBtn" class="btn btn-primary" type="button">Search</button>
         </div>
+
+        <!-- Keep Sort & Max ship days here; language & currency moved to top-right -->
         <div class="row" style="margin-top:10px; align-items:center">
-          <span style="font-size:13px;color:#64748b" id="lblLang">Language</span>
-          <select id="lang" class="select">
-            <option value="en">English</option><option value="ar">العربية</option>
-            <option value="fr">Français</option><option value="es">Español</option><option value="zh">中文</option>
-          </select>
-          <span style="font-size:13px;color:#64748b" id="lblCurrency">Currency</span>
-          <select id="currency" class="select">
-            <option>SGD</option><option>USD</option><option>EUR</option>
-          </select>
           <span style="font-size:13px;color:#64748b" id="lblSort">Sort by</span>
           <select id="sort" class="select">
             <option value="priceAsc">Price: Low to High</option>
@@ -80,6 +98,7 @@
             <option value="21">≤ 21</option>
           </select>
         </div>
+
         <div class="trustRow">
           <span class="smallNote">Trusted platforms:</span>
           <span class="trustBadge">Amazon</span><span class="trustBadge">eBay</span>
@@ -156,11 +175,6 @@
         <button id="suClose" class="btn">Close</button>
       </div>
     </div>
-  </div>
-
-  <!-- Button (place anywhere near search if you prefer) -->
-  <div style="margin-top:10px">
-    <button id="openSignup" class="btn">Sign up for alerts</button>
   </div>
 
   <!-- cache-bust so the new script definitely loads -->
