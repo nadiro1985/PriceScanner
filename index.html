@@ -24,7 +24,6 @@
   }
   </script>
   <style>
-    /* simple hero video behind header */
     .heroWrap{position:relative; overflow:hidden; border-radius:16px}
     .heroWrap video{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:.18}
     .heroContent{position:relative; padding:24px 16px}
@@ -33,23 +32,23 @@
     .appBadges{display:flex; gap:10px; align-items:center}
     .smallNote{font-size:12px; color:#64748b}
 
-    /* NEW: top bar with logo left, controls right */
+    /* top bar */
     .topBar{display:flex; align-items:center; gap:12px; margin-bottom:12px}
     .spacer{flex:1}
     .topControls{display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end}
     .btn-sm{padding:.45rem .7rem; font-weight:700; border:1px solid rgba(0,0,0,.12); border-radius:12px; background:linear-gradient(90deg,var(--brand1,#4f46e5),var(--brand2,#7c3aed)); color:#fff}
     .select.small{padding:.45rem .6rem; border-radius:12px; border:1px solid rgba(0,0,0,.12); background:#fff}
+    .sr-only{position:absolute; left:-9999px}
     @media (max-width:640px){ .topControls{justify-content:flex-end} }
   </style>
 </head>
 <body>
   <div class="container" style="padding:24px 16px">
     <div class="heroWrap">
-      <!-- Optional small looping video; replace src with your own hero.mp4 or a CDN link -->
       <video autoplay muted loop playsinline src="hero.mp4"></video>
       <div class="heroContent">
 
-        <!-- NEW: top bar -->
+        <!-- top bar -->
         <div class="topBar">
           <div class="logoWrap">
             <img id="brandLogo" src="logo.svg" alt="logo">
@@ -58,18 +57,19 @@
           <div class="spacer"></div>
           <div class="topControls">
             <button id="openSignup" class="btn-sm" type="button" title="Sign in / Sign up for alerts">Sign in</button>
-            <label for="lang" class="sr-only" style="position:absolute;left:-9999px">Language</label>
+            <!-- sr-only labels so script can update text without crashing -->
+            <span id="lblLang" class="sr-only">Language</span>
             <select id="lang" class="select small">
               <option value="en">English</option><option value="ar">العربية</option>
               <option value="fr">Français</option><option value="es">Español</option><option value="zh">中文</option>
             </select>
-            <label for="currency" class="sr-only" style="position:absolute;left:-9999px">Currency</label>
+            <span id="lblCurrency" class="sr-only">Currency</span>
             <select id="currency" class="select small">
               <option>SGD</option><option>USD</option><option>EUR</option>
             </select>
           </div>
         </div>
-        <!-- /NEW: top bar -->
+        <!-- /top bar -->
 
         <h1 id="tagline" class="heroTitle" style="font-size:40px;margin:6px 0">Find the best price, fast</h1>
         <p style="color:#475569;max-width:780px">
@@ -81,7 +81,7 @@
           <button id="searchBtn" class="btn btn-primary" type="button">Search</button>
         </div>
 
-        <!-- Keep Sort & Max ship days here; language & currency moved to top-right -->
+        <!-- Sort & Max ship days -->
         <div class="row" style="margin-top:10px; align-items:center">
           <span style="font-size:13px;color:#64748b" id="lblSort">Sort by</span>
           <select id="sort" class="select">
@@ -178,6 +178,6 @@
   </div>
 
   <!-- cache-bust so the new script definitely loads -->
-  <script src="script.js?v=17"></script>
+  <script src="script.js?v=19"></script>
 </body>
 </html>
