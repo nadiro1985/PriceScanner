@@ -8,23 +8,18 @@
   <link rel="icon" href="logo.svg">
   <link rel="stylesheet" href="styles.css">
 
-  <!-- Canonical to folder root (avoid /index.html duplicates) -->
+  <!-- Canonical & Open Graph -->
   <link rel="canonical" href="https://nadiro1985.github.io/PriceScanner/">
-
-  <!-- OpenGraph / Social -->
   <meta property="og:title" content="PriceScanner — Compare across 15 platforms">
   <meta property="og:description" content="Find the best price fast. Trusted partners: Amazon, eBay, Shopee, Lazada, AliExpress, and more.">
   <meta property="og:type" content="website">
-  <!-- Prefer 1200x630 PNG/JPG for rich previews -->
   <meta property="og:image" content="og-1200x630.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:site_name" content="PriceScanner">
   <meta name="twitter:card" content="summary_large_image">
-
   <meta name="robots" content="index,follow">
 
-  <!-- JSON-LD: WebSite + SearchAction (target uses folder root with ?q=) -->
+  <!-- Structured Data -->
   <script type="application/ld+json">
   {
     "@context":"https://schema.org",
@@ -53,30 +48,31 @@
     .btn-sm{padding:.45rem .7rem; font-weight:700; border:1px solid rgba(0,0,0,.12); border-radius:12px; background:linear-gradient(90deg,var(--brand1,#4f46e5),var(--brand2,#7c3aed)); color:#fff}
     .select.small{padding:.45rem .6rem; border-radius:12px; border:1px solid rgba(0,0,0,.12); background:#fff}
     .sr-only{position:absolute; left:-9999px}
+    #toast{aria-live:polite}
     @media (max-width:640px){ .topControls{justify-content:flex-end} }
   </style>
 </head>
 <body>
   <div class="container" style="padding:24px 16px">
-    <div class="heroWrap" aria-label="Promotional banner">
-      <!-- Better LCP: poster & preload=none -->
+    <div class="heroWrap">
+      <!-- Better LCP: no preload + poster -->
       <video autoplay muted loop playsinline preload="none" poster="hero-poster.jpg" src="hero.mp4"></video>
       <div class="heroContent">
         <div class="topBar">
           <div class="logoWrap">
-            <img id="brandLogo" src="logo.svg" alt="PriceScanner logo">
+            <img id="brandLogo" src="logo.svg" alt="logo">
             <div id="brandName" class="logoText">PriceScanner</div>
           </div>
           <div class="spacer"></div>
           <div class="topControls">
             <button id="openSignup" class="btn-sm" type="button" title="Sign in / Sign up for alerts">Sign in</button>
             <span id="lblLang" class="sr-only">Language</span>
-            <select id="lang" class="select small" aria-label="Language">
+            <select id="lang" class="select small" aria-labelledby="lblLang">
               <option value="en">English</option><option value="ar">العربية</option>
               <option value="fr">Français</option><option value="es">Español</option><option value="zh">中文</option>
             </select>
             <span id="lblCurrency" class="sr-only">Currency</span>
-            <select id="currency" class="select small" aria-label="Currency">
+            <select id="currency" class="select small" aria-labelledby="lblCurrency">
               <option>SGD</option><option>USD</option><option>EUR</option>
             </select>
           </div>
@@ -86,23 +82,22 @@
         <p style="color:#475569;max-width:780px">
           Search once, compare everywhere. We highlight offers from reliable platforms so your money stays safe.
           You might find cheaper elsewhere, but with us you get <b>trusted partners</b> and <b>buyer protection</b>.
-          <span style="display:block;margin-top:6px;font-size:12px;color:#64748b">We may earn a commission from partner links.</span>
+          <br><span class="smallNote">We may earn a commission from partner links.</span>
         </p>
-        <form class="row" style="margin-top:12px" role="search" action="." method="get">
-          <label for="search" class="sr-only">Search products</label>
-          <input id="search" name="q" class="input" placeholder="Search products…" style="flex:1 1 auto" autocomplete="off" />
-          <button id="searchBtn" class="btn btn-primary" type="submit">Search</button>
-        </form>
+        <div class="row" style="margin-top:12px">
+          <input id="search" class="input" placeholder="Search products…" style="flex:1 1 auto" aria-label="Search products">
+          <button id="searchBtn" class="btn btn-primary" type="button">Search</button>
+        </div>
 
         <div class="row" style="margin-top:10px; align-items:center">
           <span style="font-size:13px;color:#64748b" id="lblSort">Sort by</span>
-          <select id="sort" class="select" aria-label="Sort by">
+          <select id="sort" class="select" aria-labelledby="lblSort">
             <option value="priceAsc">Price: Low to High</option>
             <option value="priceDesc">Price: High to Low</option>
             <option value="rating">Rating</option>
           </select>
           <span style="font-size:13px;color:#64748b" id="lblShip">Max ship days</span>
-          <select id="shipMax" class="select" aria-label="Max ship days">
+          <select id="shipMax" class="select" aria-labelledby="lblShip">
             <option value="">Any</option>
             <option value="3">≤ 3</option>
             <option value="7">≤ 7</option>
@@ -111,12 +106,12 @@
           </select>
         </div>
 
-        <div class="trustRow" aria-label="Trusted platforms">
+        <div class="trustRow">
           <span class="smallNote">Trusted platforms:</span>
           <span class="trustBadge">Amazon</span><span class="trustBadge">eBay</span>
           <span class="trustBadge">Shopee</span><span class="trustBadge">Lazada</span>
           <span class="trustBadge">AliExpress</span><span class="trustBadge">Temu</span>
-          <span class="smallNote">Links are marked as sponsored. Buying elsewhere may be cheaper, but not guaranteed safe.</span>
+          <span class="smallNote">We prioritize safety. Buying elsewhere may be cheaper, but not guaranteed safe — avoid the risk.</span>
         </div>
       </div>
     </div>
@@ -126,7 +121,7 @@
         <div style="margin-top:10px;font-size:13px;color:#64748b" id="lblSources">Sources (click to include/exclude):</div>
         <div id="sources" class="row" style="margin-top:6px"></div>
       </div>
-      <aside class="card sidebar" aria-label="Watchlist">
+      <aside class="card sidebar">
         <div style="padding:16px">
           <div style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase" id="lblWatchlist">Watchlist</div>
           <button id="refreshBtn" class="btn" style="margin:10px 0">Refresh</button>
@@ -136,9 +131,7 @@
     </div>
   </div>
 
-  <section class="container" style="padding:8px 16px 24px">
-    <div id="grid" class="grid" aria-live="polite"></div>
-  </section>
+  <section class="container" style="padding:8px 16px 24px"><div id="grid" class="grid"></div></section>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <section class="container" style="padding:8px 16px 24px">
@@ -164,14 +157,13 @@
     document.getElementById('year').textContent = new Date().getFullYear();
     (function(){ const cfg = JSON.parse(localStorage.getItem('site.config')||"{}");
       if(cfg && cfg.name){ document.getElementById('brandFooter').textContent = cfg.name; }})();
-    // Submit button also triggers live input search (progressive enhancement)
     document.getElementById('searchBtn')?.addEventListener('click', function(e){
-      const input = document.getElementById('search');
+      e.preventDefault(); const input = document.getElementById('search');
       if (input) input.dispatchEvent(new Event('input', { bubbles: true }));
     });
   </script>
 
-  <!-- Signup / Verify Modal with a11y -->
+  <!-- Signup / Verify Modal (accessible) -->
   <div id="signupModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); align-items:center; justify-content:center;"
        role="dialog" aria-modal="true" aria-labelledby="suTitle">
     <div style="background:#fff; padding:16px; border-radius:12px; width:90%; max-width:420px">
@@ -193,7 +185,7 @@
     </div>
   </div>
 
-  <!-- cache-bust so the new script definitely loads -->
-  <script src="script.js?v=24" defer></script>
+  <!-- Defer main bundle (cache-bust) -->
+  <script defer src="script.js?v=25"></script>
 </body>
 </html>
