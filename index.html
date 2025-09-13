@@ -7,7 +7,6 @@
   <meta name="description" content="Compare prices from trusted platforms. Set alerts, choose your language & currency, and get the best deal safely.">
   <link rel="icon" href="logo.svg">
   <link rel="stylesheet" href="styles.css">
-  <!-- OpenGraph / SEO -->
   <meta property="og:title" content="PriceScanner — Compare across 15 platforms">
   <meta property="og:description" content="Find the best price fast. Trusted partners: Amazon, eBay, Shopee, Lazada, AliExpress, and more.">
   <meta property="og:type" content="website">
@@ -15,13 +14,9 @@
   <link rel="canonical" href="https://nadiro1985.github.io/PriceScanner/index.html">
   <meta name="robots" content="index,follow">
   <script type="application/ld+json">
-  {
-    "@context":"https://schema.org",
-    "@type":"WebSite",
-    "name":"PriceScanner",
+  { "@context":"https://schema.org","@type":"WebSite","name":"PriceScanner",
     "url":"https://nadiro1985.github.io/PriceScanner/",
-    "potentialAction":{"@type":"SearchAction","target":"https://nadiro1985.github.io/PriceScanner/index.html?q={search_term_string}","query-input":"required name=search_term_string"}
-  }
+    "potentialAction":{"@type":"SearchAction","target":"https://nadiro1985.github.io/PriceScanner/index.html?q={search_term_string}","query-input":"required name=search_term_string"} }
   </script>
   <style>
     .heroWrap{position:relative; overflow:hidden; border-radius:16px}
@@ -31,8 +26,6 @@
     .trustBadge{border:1px solid rgba(0,0,0,.1); border-radius:999px; padding:6px 10px; background:#fff}
     .appBadges{display:flex; gap:10px; align-items:center}
     .smallNote{font-size:12px; color:#64748b}
-
-    /* top bar */
     .topBar{display:flex; align-items:center; gap:12px; margin-bottom:12px}
     .spacer{flex:1}
     .topControls{display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end}
@@ -47,8 +40,6 @@
     <div class="heroWrap">
       <video autoplay muted loop playsinline src="hero.mp4"></video>
       <div class="heroContent">
-
-        <!-- top bar -->
         <div class="topBar">
           <div class="logoWrap">
             <img id="brandLogo" src="logo.svg" alt="logo">
@@ -57,7 +48,6 @@
           <div class="spacer"></div>
           <div class="topControls">
             <button id="openSignup" class="btn-sm" type="button" title="Sign in / Sign up for alerts">Sign in</button>
-            <!-- sr-only labels so script can update text without crashing -->
             <span id="lblLang" class="sr-only">Language</span>
             <select id="lang" class="select small">
               <option value="en">English</option><option value="ar">العربية</option>
@@ -69,7 +59,6 @@
             </select>
           </div>
         </div>
-        <!-- /top bar -->
 
         <h1 id="tagline" class="heroTitle" style="font-size:40px;margin:6px 0">Find the best price, fast</h1>
         <p style="color:#475569;max-width:780px">
@@ -81,7 +70,6 @@
           <button id="searchBtn" class="btn btn-primary" type="button">Search</button>
         </div>
 
-        <!-- Sort & Max ship days -->
         <div class="row" style="margin-top:10px; align-items:center">
           <span style="font-size:13px;color:#64748b" id="lblSort">Sort by</span>
           <select id="sort" class="select">
@@ -103,7 +91,7 @@
           <span class="smallNote">Trusted platforms:</span>
           <span class="trustBadge">Amazon</span><span class="trustBadge">eBay</span>
           <span class="trustBadge">Shopee</span><span class="trustBadge">Lazada</span>
-          <span class="trustBadge">AliExpress</span><span class="trustBadge">Walmart</span>
+          <span class="trustBadge">AliExpress</span><span class="trustBadge">Temu</span>
           <span class="smallNote">We prioritize safety. Buying elsewhere may be cheaper, but not guaranteed safe — avoid the risk.</span>
         </div>
       </div>
@@ -124,13 +112,9 @@
     </div>
   </div>
 
-  <section class="container" style="padding:8px 16px 24px">
-    <div id="grid" class="grid"></div>
-  </section>
-
+  <section class="container" style="padding:8px 16px 24px"><div id="grid" class="grid"></div></section>
   <div id="toast" class="toast"></div>
 
-  <!-- App badges (coming soon) -->
   <section class="container" style="padding:8px 16px 24px">
     <div class="appBadges">
       <a class="btn" href="#" aria-label="Google Play (coming soon)">Google Play (coming soon)</a>
@@ -147,13 +131,10 @@
 
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
-    (function(){
-      const cfg = JSON.parse(localStorage.getItem('site.config')||"{}");
-      if(cfg && cfg.name){ document.getElementById('brandFooter').textContent = cfg.name; }
-    })();
+    (function(){ const cfg = JSON.parse(localStorage.getItem('site.config')||"{}");
+      if(cfg && cfg.name){ document.getElementById('brandFooter').textContent = cfg.name; }})();
     document.getElementById('searchBtn')?.addEventListener('click', function(e){
-      e.preventDefault();
-      const input = document.getElementById('search');
+      e.preventDefault(); const input = document.getElementById('search');
       if (input) input.dispatchEvent(new Event('input', { bubbles: true }));
     });
   </script>
@@ -178,6 +159,6 @@
   </div>
 
   <!-- cache-bust so the new script definitely loads -->
-  <script src="script.js?v=20"></script>
+  <script src="script.js?v=21"></script>
 </body>
 </html>
