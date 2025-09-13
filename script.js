@@ -34,7 +34,7 @@ const offersByVendor = Object.fromEntries(vendorDefs.map(v => [v.name, []]));
 const i18n = {
   en:{Lang:"Language",Currency:"Currency",Sort:"Sort by",Sources:"Sources",Watchlist:"Watchlist",Refresh:"Refresh",MaxShip:"Max ship days"},
   ar:{Lang:"اللغة",Currency:"العملة",Sort:"ترتيب حسب",Sources:"المصادر",Watchlist:"قائمة المراقبة",Refresh:"تحديث",MaxShip:"أقصى أيام للشحن"},
-  fr:{Lang:"Langue",Currency:"Devise",Sort:"Trier par",Sources:"Sources",Watchlist:"Liste de suivi",Refresh:"Actualiser",MaxShip:"Délais max"},
+  fr:{Langue:"Langue",Currency:"Devise",Sort:"Trier par",Sources:"Sources",Watchlist:"Liste de suivi",Refresh:"Actualiser",MaxShip:"Délais max"},
   es:{Lang:"Idioma",Currency:"Moneda",Sort:"Ordenar por",Sources:"Fuentes",Watchlist:"Lista",Refresh:"Actualizar",MaxShip:"Días máx envío"},
   zh:{Lang:"语言",Currency:"货币",Sort:"排序",Sources:"来源",Watchlist:"关注列表",Refresh:"刷新",MaxShip:"最⻓运输天数"}
 };
@@ -73,6 +73,19 @@ function estimateShipDays(vendor,country){
   if (fast.has(vendor)) return (["SG","US","GB"].includes(country))?3:7;
   if (intl.has(vendor)) return (country==="SG")?7:14;
   return 10;
+}
+
+// OUT link builder (click wrapper)
+function outUrl(item){
+  const r = localStorage.getItem('ps.ref') || '';
+  const params = new URLSearchParams({
+    vendor: item.vendor || '',
+    u: item.url || '',
+    id: item.id || '',
+    t: query || '',
+    r
+  });
+  return `${WORKER_BASE}/out?${params.toString()}`;
 }
 
 // loaders
@@ -236,7 +249,7 @@ function render(){
           <div style="font-size:12px;color:#6b7280;text-align:right"><div>${item.shipping||'—'}</div><div>${item.shipTime||'—'}</div></div>
         </div>
         <div class="row" style="margin-top:10px">
-          <a class="btn btn-primary" href="${item.url}" target="_blank" rel="sponsored nofollow noopener">View Deal</a>
+          <a class="btn btn-primary" href="${outUrl(item)}" target="_blank" rel="sponsored nofollow noopener">View Deal</a>
           <button class="btn watchBtn">Watch</button>
         </div>
       </div>`;
@@ -305,7 +318,6 @@ window.addEventListener('DOMContentLoaded', async ()=>{
 
   $('#search').oninput=(e)=>{ query=e.target.value; localStorage.setItem('ps.lastQuery',query);
     clearTimeout(debounce); debounce=setTimeout(async()=>{
-      // parallel loads
       const tasks = [];
       for (const v of vendorDefs) {
         if (v.name === "eBay") tasks.push(loadEbay(query));
@@ -319,10 +331,8 @@ window.addEventListener('DOMContentLoaded', async ()=>{
 
   initSignupUI(); captureReferral(); await loadRates();
 
-  // Read '?q=' first if present
   const startTerm=defaultQuery(); query=startTerm; const se=$('#search'); if(se) se.value=startTerm;
 
-  // initial fetch
   const tasks = [];
   for (const v of vendorDefs) {
     if (v.name === "eBay") tasks.push(loadEbay(query));
