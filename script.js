@@ -1,6 +1,9 @@
 // === CONFIG / STATE ===
 const WORKER_BASE = "https://pricescanner.b48rptrywg.workers.dev";
 
+// If you add ?debug=1 to your page URL, it'll be passed through to Worker calls.
+const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
+
 // 10 vendors (display name + slug used by Worker: /search/<slug>)
 const vendorDefs = [
   { name: "Amazon",    slug: "amazon" },
@@ -84,18 +87,66 @@ function outUrl(item){
   return `${WORKER_BASE}/out?${params.toString()}`;
 }
 
+// ---- AliExpress enrichment: fetch live detail price for top N results ----
+const AE_DETAIL_ENRICH_COUNT = 8; // tweak if needed
+async function enrichAliDetails(items){
+  const tasks = items.slice(0, AE_DETAIL_ENRICH_COUNT).map(async (it, idx) => {
+    if (!it || !it.id) return it;
+    try {
+      const url = new URL(`${WORKER_BASE}/ae/price`);
+      url.searchParams.set("product_id", String(it.id));
+      if (DEBUG) url.searchParams.set("debug","1");
+      const r = await fetch(url.toString(), { mode: "cors", cache: "no-store" });
+      if (!r.ok) return it;
+      const d = await r.json().catch(()=>null);
+      const fresh = d && d.ok && d.data ? d.data : null;
+      if (fresh && typeof fresh.price === "number" && fresh.price > 0) {
+        // prefer freshest promo link if provided
+        return {
+          ...it,
+          price: fresh.price,
+          currency: fresh.currency || it.currency || "USD",
+          url: fresh.url || it.url
+        };
+      }
+      return it;
+    } catch {
+      return it;
+    }
+  });
+  const enriched = await Promise.all(tasks);
+  // merge enriched back into original array (keep ordering)
+  const map = new Map(enriched.map(e => [String(e.id), e]));
+  return items.map(o => map.get(String(o.id)) || o);
+}
+
 // loaders
 async function loadVendor(vendor){
   const def = vendorDefs.find(v => v.name === vendor); if (!def) return;
   offersByVendor[vendor] = [];
   const term=(query||"").trim(); if(!enabled.includes(vendor)||!WORKER_BASE||!term) return;
   try{
-    const r=await fetch(`${WORKER_BASE}/search/${def.slug}?q=`+encodeURIComponent(term),{mode:"cors",cache:"no-store"});
+    const url = new URL(`${WORKER_BASE}/search/${def.slug}`);
+    url.searchParams.set("q", term);
+    if (DEBUG) url.searchParams.set("debug","1");
+    const r=await fetch(url.toString(),{mode:"cors",cache:"no-store"});
     const d=await r.json().catch(()=>({results:[]}));
     if(!r.ok){ console.warn(`${vendor} search error`, r.status, d); return; }
-    if (d.error) console.warn(`${vendor} search note:`, d.error);
+    if (d.error) console.warn(`${vendor} search error:`, d.error);
     if (d.note)  console.info(`${vendor} search note:`, d.note);
-    const arr=(Array.isArray(d.results)?d.results:[]).map(o=>({...o,currency:o.currency||"USD",shipDays:estimateShipDays(vendor,userCountry),vendor}));
+
+    let arr=(Array.isArray(d.results)?d.results:[]).map(o=>({
+      ...o,
+      currency:o.currency||"USD",
+      shipDays:estimateShipDays(vendor,userCountry),
+      vendor
+    }));
+
+    // Optional: get fresher AliExpress prices via /ae/price
+    if (vendor === "AliExpress" && arr.length) {
+      arr = await enrichAliDetails(arr);
+    }
+
     offersByVendor[vendor] = arr;
     if (!arr.length) console.info(`${vendor}: 0 results for query:`, term);
   }catch(e){ console.warn(`${vendor} search fetch failed:`,e); }
