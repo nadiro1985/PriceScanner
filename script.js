@@ -88,7 +88,7 @@ function outUrl(item){
 }
 
 // ---- AliExpress enrichment: fetch live detail price for top N results ----
-const AE_DETAIL_ENRICH_COUNT = 8; // tweak if needed
+const AE_DETAIL_ENRICH_COUNT = 0; // tweak if needed
 async function enrichAliDetails(items){
   const tasks = items.slice(0, AE_DETAIL_ENRICH_COUNT).map(async (it, idx) => {
     if (!it || !it.id) return it;
@@ -148,6 +148,7 @@ async function loadVendor(vendor){
     }
 
     offersByVendor[vendor] = arr;
+    console.log(`[${vendor}] loaded:`, arr.length, 'items for', term);
     if (!arr.length) console.info(`${vendor}: 0 results for query:`, term);
   }catch(e){ console.warn(`${vendor} search fetch failed:`,e); }
 }
@@ -157,23 +158,7 @@ function currentResults(){
   for (const v of vendorDefs.map(v=>v.name)) {
     if (enabled.includes(v)) base = base.concat(offersByVendor[v]||[]);
   }
-  if (query) {
-  const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
-  base = base.filter(o => {
-    const t = (o.title || '').toLowerCase();
-
-    // simple synonym helper
-    const has = (word) => t.includes(word);
-    const synonyms = (w) => {
-      if (w === 'earbud' || w === 'earbuds') return has('earbud')||has('earbuds')||has('earphone')||has('earphones')||has('headphone')||has('headphones');
-      if (w === 'earphone' || w === 'earphones') return has('earphone')||has('earphones')||has('earbud')||has('earbuds')||has('headphone')||has('headphones');
-      if (w === 'headphone' || w === 'headphones') return has('headphone')||has('headphones')||has('earbud')||has('earbuds')||has('earphone')||has('earphones');
-      return has(w);
-    };
-
-    return tokens.every(synonyms);
-  });
-}
+// no client-side re-filter by query; Worker already filtered by q
   if (maxShipDays) base = base.filter(o => (o.shipDays||estimateShipDays(o.vendor,userCountry)) <= Number(maxShipDays));
   if (sortBy==='priceAsc')  base.sort((a,b)=> priceInSelected(a) - priceInSelected(b));
   if (sortBy==='priceDesc') base.sort((a,b)=> priceInSelected(b) - priceInSelected(a));
