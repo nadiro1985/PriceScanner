@@ -157,7 +157,23 @@ function currentResults(){
   for (const v of vendorDefs.map(v=>v.name)) {
     if (enabled.includes(v)) base = base.concat(offersByVendor[v]||[]);
   }
-  if (query) base = base.filter(o => (o.title||"").toLowerCase().includes(query.toLowerCase()));
+  if (query) {
+  const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+  base = base.filter(o => {
+    const t = (o.title || '').toLowerCase();
+
+    // simple synonym helper
+    const has = (word) => t.includes(word);
+    const synonyms = (w) => {
+      if (w === 'earbud' || w === 'earbuds') return has('earbud')||has('earbuds')||has('earphone')||has('earphones')||has('headphone')||has('headphones');
+      if (w === 'earphone' || w === 'earphones') return has('earphone')||has('earphones')||has('earbud')||has('earbuds')||has('headphone')||has('headphones');
+      if (w === 'headphone' || w === 'headphones') return has('headphone')||has('headphones')||has('earbud')||has('earbuds')||has('earphone')||has('earphones');
+      return has(w);
+    };
+
+    return tokens.every(synonyms);
+  });
+}
   if (maxShipDays) base = base.filter(o => (o.shipDays||estimateShipDays(o.vendor,userCountry)) <= Number(maxShipDays));
   if (sortBy==='priceAsc')  base.sort((a,b)=> priceInSelected(a) - priceInSelected(b));
   if (sortBy==='priceDesc') base.sort((a,b)=> priceInSelected(b) - priceInSelected(a));
