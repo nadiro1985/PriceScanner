@@ -4,20 +4,17 @@ const WORKER_BASE = "https://pricescanner.b48rptrywg.workers.dev";
 // If you add ?debug=1 to your page URL, it'll be passed through to Worker calls.
 const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
 
-// 10 vendors (display name + slug used by Worker: /search/<slug>)
+// Platforms: keep Amazon, eBay, AliExpress (live); keep Shopee, Etsy, Alibaba as coming soon
 const vendorDefs = [
-  { name: "Amazon",    slug: "amazon" },
-  { name: "eBay",      slug: "ebay" },
-  { name: "AliExpress",slug: "aliexpress" },
-  { name: "Shopee",    slug: "shopee" },
-  { name: "Lazada",    slug: "lazada" },
-  { name: "Temu",      slug: "temu" },
-  { name: "Walmart",   slug: "walmart" },
-  { name: "Etsy",      slug: "etsy" },
-  { name: "Best Buy",  slug: "bestbuy" },
-  { name: "Target",    slug: "target" },
+  { name: "Amazon",     slug: "amazon",     supported: true,  color: "blue" },
+  { name: "eBay",       slug: "ebay",       supported: true,  color: "green" },
+  { name: "AliExpress", slug: "aliexpress", supported: true,  color: "red" },
+  { name: "Shopee",     slug: "shopee",     supported: false, comingSoon: true, color: "red" },
+  { name: "Etsy",       slug: "etsy",       supported: false, comingSoon: true, color: "green" },
+  { name: "Alibaba",    slug: "alibaba",    supported: false, comingSoon: true, color: "blue" },
 ];
-let enabled       = vendorDefs.map(v => v.name); // all ON by default
+
+let enabled       = vendorDefs.filter(v => v.supported).map(v => v.name); // live platforms ON by default
 
 let currency    = "SGD";
 let sortBy      = "priceAsc";
@@ -27,6 +24,7 @@ let maxShipDays = "";
 let fx          = { base:"USD", rates:{ USD:1 }, at:0 };
 let watches     = JSON.parse(localStorage.getItem('ps.watches')||"[]");
 let lang        = localStorage.getItem('ps.lang') || 'en';
+let theme       = localStorage.getItem('ps.theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 let lastFocusedEl = null;
 
 const offersByVendor = Object.fromEntries(vendorDefs.map(v => [v.name, []]));
@@ -49,6 +47,15 @@ function show(el, on){ if (el) el.style.display = on ? 'flex' : 'none'; }
 async function postJSON(url, data){ const r = await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(data)}); return r.json(); }
 (function(){ try{ const loc=(navigator.language||"en-US").split("-")[1]; if(loc) userCountry=loc.toUpperCase(); }catch{} })();
 
+// Theme
+function applyTheme(mode){
+  document.documentElement.setAttribute('data-theme', mode);
+  localStorage.setItem('ps.theme', mode);
+  const btn = $('#themeToggle');
+  if (btn) btn.textContent = (mode==='dark'?'☀️':'🌙');
+}
+applyTheme(theme);
+
 // FX
 async function loadRates() {
   try {
@@ -67,8 +74,8 @@ function convertAmount(amount, fromCur){ const from=(fromCur||"USD").toUpperCase
   if(!rFrom||!rTo) return amount; return amount*(rTo/rFrom); }
 function priceInSelected(o){ return convertAmount(o.price, o.currency||"USD"); }
 function estimateShipDays(vendor,country){
-  const fast = new Set(["eBay","Amazon","Best Buy","Target","Walmart","Lazada"]);
-  const intl = new Set(["Shopee","AliExpress","Temu","Etsy"]);
+  const fast = new Set(["eBay","Amazon"]);
+  const intl = new Set(["AliExpress","Shopee","Etsy","Alibaba"]);
   if (fast.has(vendor)) return (["SG","US","GB"].includes(country))?3:7;
   if (intl.has(vendor)) return (country==="SG")?7:14;
   return 10;
@@ -90,7 +97,7 @@ function outUrl(item){
 // ---- AliExpress enrichment: fetch live detail price for top N results ----
 const AE_DETAIL_ENRICH_COUNT = 0; // tweak if needed
 async function enrichAliDetails(items){
-  const tasks = items.slice(0, AE_DETAIL_ENRICH_COUNT).map(async (it, idx) => {
+  const tasks = items.slice(0, AE_DETAIL_ENRICH_COUNT).map(async (it) => {
     if (!it || !it.id) return it;
     try {
       const url = new URL(`${WORKER_BASE}/ae/price`);
@@ -101,21 +108,12 @@ async function enrichAliDetails(items){
       const d = await r.json().catch(()=>null);
       const fresh = d && d.ok && d.data ? d.data : null;
       if (fresh && typeof fresh.price === "number" && fresh.price > 0) {
-        // prefer freshest promo link if provided
-        return {
-          ...it,
-          price: fresh.price,
-          currency: fresh.currency || it.currency || "USD",
-          url: fresh.url || it.url
-        };
+        return { ...it, price: fresh.price, currency: fresh.currency || it.currency || "USD", url: fresh.url || it.url };
       }
       return it;
-    } catch {
-      return it;
-    }
+    } catch { return it; }
   });
   const enriched = await Promise.all(tasks);
-  // merge enriched back into original array (keep ordering)
   const map = new Map(enriched.map(e => [String(e.id), e]));
   return items.map(o => map.get(String(o.id)) || o);
 }
@@ -124,6 +122,13 @@ async function enrichAliDetails(items){
 async function loadVendor(vendor){
   const def = vendorDefs.find(v => v.name === vendor); if (!def) return;
   offersByVendor[vendor] = [];
+
+  // Skip vendors that are not yet supported
+  if (!def.supported) {
+    console.info(`[${vendor}] coming soon; skipping network call.`);
+    return;
+  }
+
   const term=(query||"").trim(); if(!enabled.includes(vendor)||!WORKER_BASE||!term) return;
   try{
     const url = new URL(`${WORKER_BASE}/search/${def.slug}`);
@@ -158,7 +163,6 @@ function currentResults(){
   for (const v of vendorDefs.map(v=>v.name)) {
     if (enabled.includes(v)) base = base.concat(offersByVendor[v]||[]);
   }
-// no client-side re-filter by query; Worker already filtered by q
   if (maxShipDays) base = base.filter(o => (o.shipDays||estimateShipDays(o.vendor,userCountry)) <= Number(maxShipDays));
   if (sortBy==='priceAsc')  base.sort((a,b)=> priceInSelected(a) - priceInSelected(b));
   if (sortBy==='priceDesc') base.sort((a,b)=> priceInSelected(b) - priceInSelected(a));
@@ -174,8 +178,16 @@ function renderLabels(){
   const setTxt = (id, key) => { const el=document.getElementById(id); if (el) el.textContent=t(key); };
   setTxt('lblLang','Lang'); setTxt('lblCurrency','Currency'); setTxt('lblSort','Sort');
   setTxt('lblSources','Sources'); setTxt('lblWatchlist','Watchlist'); setTxt('lblShip','MaxShip');
-  const rb=document.getElementById('refreshBtn'); if (rb) rb.textContent=t('Refresh');
   document.documentElement.dir = (lang==='ar') ? 'rtl' : 'ltr';
+}
+
+function vendorColorStyle(name){
+  const v = vendorDefs.find(x=>x.name===name);
+  if(!v) return '';
+  if (v.color==='blue') return 'var(--brand-blue)';
+  if (v.color==='red')  return 'var(--brand-red)';
+  if (v.color==='green')return 'var(--brand-green)';
+  return 'var(--accent-1)';
 }
 
 // signup modal
@@ -252,35 +264,52 @@ async function pushWatchlistToServer(){
 function render(){
   renderLabels();
 
+  // Sources badges
   const srcWrap = $('#sources'); srcWrap.innerHTML='';
-  vendorDefs.forEach(v=>{ const on=enabled.includes(v.name);
-    const b=document.createElement('button'); b.className='badge'; b.style.background=on?'#ecfdf5':'#fff7ed';
-    b.textContent=(on?'✔ ':'✖ ')+v.name; b.onclick=()=>{ enabled=on?enabled.filter(x=>x!==v.name):[...enabled,v.name]; render(); }; srcWrap.appendChild(b); });
+  vendorDefs.forEach(v=>{
+    const on=enabled.includes(v.name);
+    const b=document.createElement('button');
+    b.className='badge';
+    b.style.borderColor = vendorColorStyle(v.name);
+    b.style.background = on ? 'var(--badge-on)' : 'var(--badge-off)';
+    b.style.opacity = v.supported ? '1' : '.6';
+    b.title = v.supported ? (on ? 'Click to disable' : 'Click to enable') : 'Coming soon';
+    b.textContent=(on?'✔ ':'✖ ')+v.name + (v.supported ? '' : ' (soon)');
+    if (v.supported) {
+      b.onclick=()=>{ enabled=on?enabled.filter(x=>x!==v.name):[...enabled,v.name]; render(); };
+    } else {
+      b.disabled = true;
+      b.style.cursor = 'not-allowed';
+    }
+    srcWrap.appendChild(b);
+  });
 
+  // Results grid
   const data = currentResults();
   const grid = $('#grid'); grid.innerHTML='';
   data.forEach(item=>{
     const p = priceInSelected(item);
     const ship = item.shipDays || estimateShipDays(item.vendor, userCountry);
-    const card = document.createElement('div'); card.className='card';
+    const card = document.createElement('div'); card.className='card card-hover';
+
     card.innerHTML = `
-      <div style="position:relative;width:100%;padding-top:56%">
-        <img loading="lazy" width="600" height="338" src="${item.image}" alt="${item.title}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"/>
+      <div class="media">
+        <img loading="lazy" width="600" height="338" src="${item.image}" alt="${item.title} product image"/>
       </div>
-      <div style="padding:16px">
-        <div style="display:flex;justify-content:space-between;gap:8px">
-          <h3 style="font-size:16px;font-weight:700;line-height:1.2;margin:0">${item.title}</h3>
+      <div class="cardBody">
+        <div class="titleRow">
+          <h3 class="title">${item.title}</h3>
         </div>
-        <div style="display:flex;gap:8px;font-size:13px;margin-top:6px">
-          <span class="badge">${item.vendor}</span>
+        <div class="metaRow">
+          <span class="badge vendor" data-vendor="${item.vendor}">${item.vendor}</span>
           <span class="badge">⭐ ${item.rating||4.2}</span>
           <span class="badge">🚚 ~${ship}d</span>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-          <div style="font-size:22px;font-weight:800">${fmt(p)}</div>
-          <div style="font-size:12px;color:#6b7280;text-align:right"><div>${item.shipping||'—'}</div><div>${item.shipTime||'—'}</div></div>
+        <div class="priceRow">
+          <div class="price">${fmt(p)}</div>
+          <div class="shipMeta"><div>${item.shipping||'—'}</div><div>${item.shipTime||'—'}</div></div>
         </div>
-        <div class="row" style="margin-top:10px">
+        <div class="row actions">
           <a class="btn btn-primary" href="${outUrl(item)}" target="_blank" rel="sponsored nofollow noopener">View Deal</a>
           <button class="btn watchBtn">Watch</button>
         </div>
@@ -289,16 +318,17 @@ function render(){
     grid.appendChild(card);
   });
 
-  const list = $('#watchlist'); list.innerHTML = watches.length ? '' : '<div style="font-size:14px;color:#6b7280">No watched items yet.</div>';
+  // Watchlist
+  const list = $('#watchlist'); list.innerHTML = watches.length ? '' : '<div class="muted">No watched items yet.</div>';
   watches.forEach(w=>{
-    const row=document.createElement('div'); row.className='card'; row.style.border='1px solid rgba(0,0,0,.08)';
+    const row=document.createElement('div'); row.className='card thinBorder';
     row.innerHTML = `
-      <div style="padding:12px">
-        <div style="font-weight:700">${w.title}</div>
-        <div style="font-size:12px;color:#6b7280">Baseline: ${w.baseline??'—'} • Last: ${w.last??'—'} • ${w.triggered?'Triggered':'Waiting'}</div>
-        <div class="row" style="margin-top:8px;align-items:center;gap:8px;flex-wrap:wrap">
+      <div class="pad-sm">
+        <div class="wlTitle">${w.title}</div>
+        <div class="wlMeta">Baseline: ${w.baseline??'—'} • Last: ${w.last??'—'} • ${w.triggered?'Triggered':'Waiting'}</div>
+        <div class="row gap wrap">
           <input type="number" class="input discount" placeholder="Discount % from baseline" value="${w.discountPct??''}"/>
-          <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" class="emailOpt"${w.emailOpt?' checked':''}/> email alerts</label>
+          <label class="inline"><input type="checkbox" class="emailOpt"${w.emailOpt?' checked':''}/> email alerts</label>
           <button class="btn resetBase">Reset baseline</button>
           <button class="btn remove">Remove</button>
         </div>
@@ -336,6 +366,134 @@ async function refreshWatches(){
 }
 function toast(m){ const t=$('#toast'); if(!t) return; t.textContent=m; t.style.display='block'; setTimeout(()=>t.style.display='none',3500); }
 
+// --- Search by Photo (on-demand TF.js + MobileNet) ---
+let mobilenetModel = null;
+function loadScript(src){ return new Promise((resolve,reject)=>{ const s=document.createElement('script'); s.src=src; s.async=true; s.onload=resolve; s.onerror=reject; document.head.appendChild(s); });}
+async function ensureMobileNet(){
+  if (mobilenetModel) return mobilenetModel;
+  await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js');
+  await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.0');
+  // global "mobilenet" is provided by the model script
+  mobilenetModel = await mobilenet.load();
+  return mobilenetModel;
+}
+async function searchByPhoto(file){
+  if (!file) return;
+  try {
+    const model = await ensureMobileNet();
+    const img = document.createElement('img');
+    img.src = URL.createObjectURL(file);
+    await new Promise(res => { img.onload = res; img.onerror = res; });
+    const preds = await model.classify(img);
+    const labels = (preds||[]).slice(0,3).map(p=>p.className);
+    const qText = labels.join(' ');
+    const input=$('#search'); if (input){ input.value = qText; }
+    query = qText; localStorage.setItem('ps.lastQuery',query);
+    const tasks = vendorDefs.filter(v=>v.supported).map(v => loadVendor(v.name));
+    await Promise.all(tasks);
+    render();
+    URL.revokeObjectURL(img.src);
+  } catch(e){
+    console.warn('Photo search error:', e);
+    toast('Photo search failed. Try a clearer image.');
+  }
+}
+
+// --- Chat Assistant ---
+function openChat(){ $('#chatPanel').hidden=false; $('#chatInput')?.focus(); }
+function closeChat(){ $('#chatPanel').hidden=true; }
+function addChatMsg(role, html){
+  const box = $('#chatMessages');
+  const wrap = document.createElement('div');
+  wrap.className = 'chat-msg ' + (role==='user'?'me':'bot');
+  wrap.innerHTML = html;
+  box.appendChild(wrap);
+  box.scrollTop = box.scrollHeight;
+}
+function parseIntent(text){
+  const msg = String(text||'').toLowerCase();
+
+  // Vendors requested
+  const vendors = vendorDefs.map(v=>v.name.toLowerCase());
+  const requested = vendors.filter(v => msg.includes(v.toLowerCase()));
+  const useVendors = requested.length ? requested : vendorDefs.filter(v=>v.supported).map(v=>v.name.toLowerCase());
+
+  // Price range
+  let min=null, max=null;
+  const m1 = msg.match(/\$?\s*(\d+)\s*[-to]\s*\$?\s*(\d+)/); if(m1){ min=+m1[1]; max=+m1[2]; }
+  const m2 = msg.match(/under|below|less than\s*\$?\s*(\d+)/); if(m2){ max=+msg.match(/(\d+)/)[1]; }
+  const m3 = msg.match(/over|above|more than\s*\$?\s*(\d+)/); if(m3){ min=+msg.match(/(\d+)/)[1]; }
+  const m4 = msg.match(/around|about\s*\$?\s*(\d+)/); if(m4){ const n=+msg.match(/(\d+)/)[1]; min=Math.floor(n*0.8); max=Math.ceil(n*1.2); }
+
+  // Clean keywords (remove vendor names and price words)
+  let cleaned = msg.replace(/\$?\d+(\s*[-to]\s*\$?\d+)?/g,'')
+                   .replace(/\b(under|below|less than|over|above|more than|around|about)\b/g,'');
+  vendorDefs.forEach(v=> cleaned = cleaned.replace(new RegExp(v.name,'ig'),''));
+  cleaned = cleaned.replace(/\s+/g,' ').trim();
+  return { query: cleaned || msg, vendors: useVendors, min, max };
+}
+
+async function searchWorker(slug, q){
+  const url = new URL(`${WORKER_BASE}/search/${slug}`);
+  url.searchParams.set("q", q);
+  if (DEBUG) url.searchParams.set("debug","1");
+  const r = await fetch(url.toString(), { mode:"cors", cache:"no-store" });
+  if (!r.ok) return [];
+  const d = await r.json().catch(()=>({results:[]}));
+  return Array.isArray(d.results) ? d.results : [];
+}
+
+function withinRange(item, min, max){
+  const p = priceInSelected(item);
+  if (min!=null && p < min) return false;
+  if (max!=null && p > max) return false;
+  return true;
+}
+
+function resultCard(item){
+  const p = fmt(priceInSelected(item));
+  return `
+    <div class="chat-card">
+      <img src="${item.image}" alt="${item.title}" />
+      <div class="cc-body">
+        <div class="cc-title">${item.title}</div>
+        <div class="cc-meta"><span class="badge vendor" data-vendor="${item.vendor}">${item.vendor}</span> <b>${p}</b></div>
+        <a class="btn btn-mini" href="${outUrl(item)}" target="_blank" rel="sponsored nofollow noopener">View</a>
+      </div>
+    </div>`;
+}
+
+async function assistantRespond(userText){
+  const intent = parseIntent(userText);
+  addChatMsg('bot', `<div class="bot-text">Let me look for <b>${intent.query}</b>${intent.min||intent.max?` in your price range${intent.min?` ≥ ${fmt(intent.min)}`:''}${intent.max?` ≤ ${fmt(intent.max)}`:''}:`:'...'}</div>`);
+
+  // Only search supported vendors
+  const live = vendorDefs.filter(v=>v.supported && intent.vendors.includes(v.name.toLowerCase()));
+  const queries = live.map(v => searchWorker(v.slug, intent.query));
+  const resultsByVendor = await Promise.all(queries);
+
+  let pool = [];
+  resultsByVendor.forEach((arr, i) => {
+    const vendorName = live[i].name;
+    (arr||[]).forEach(o => pool.push({ ...o, vendor: vendorName }));
+  });
+
+  if (intent.min!=null || intent.max!=null){
+    pool = pool.filter(o => withinRange(o, intent.min, intent.max));
+  }
+
+  // Sort: prefer price then rating
+  pool.sort((a,b) => priceInSelected(a) - priceInSelected(b) || (b.rating||0)-(a.rating||0));
+
+  if (!pool.length){
+    addChatMsg('bot', `<div class="bot-text">I couldn’t find great matches. Try adding brand/model keywords or widening your price range.</div>`);
+    return;
+  }
+
+  const top = pool.slice(0,3).map(resultCard).join('');
+  addChatMsg('bot', `<div class="bot-cards">${top}</div>`);
+}
+
 // personalization
 function captureReferral(){ const p=new URLSearchParams(location.search); const r=p.get('ref'); if(r) localStorage.setItem('ps.ref',r); }
 function defaultQuery(){ const urlQ = new URLSearchParams(location.search).get('q') || ''; if (urlQ) return urlQ; const last=localStorage.getItem('ps.lastQuery'); return last||trending[Math.floor(Math.random()*trending.length)]; }
@@ -343,25 +501,48 @@ function defaultQuery(){ const urlQ = new URLSearchParams(location.search).get('
 // BOOT
 let debounce;
 window.addEventListener('DOMContentLoaded', async ()=>{
+  // Theme toggle
+  $('#themeToggle')?.addEventListener('click', ()=> applyTheme( (localStorage.getItem('ps.theme')==='dark') ? 'light' : 'dark' ));
+
+  // Language / UI controls
   const selLang=$('#lang'); if(selLang){ selLang.value=lang; selLang.onchange=()=>{ lang=selLang.value; localStorage.setItem('ps.lang',lang); render(); } }
   $('#currency').onchange=(e)=>{ currency=e.target.value; render(); }
   $('#sort').onchange=(e)=>{ sortBy=e.target.value; render(); }
   $('#shipMax').onchange=(e)=>{ maxShipDays=e.target.value; render(); }
 
+  // Search box
   $('#search').oninput=(e)=>{ query=e.target.value; localStorage.setItem('ps.lastQuery',query);
     clearTimeout(debounce); debounce=setTimeout(async()=>{
-      const tasks = vendorDefs.map(v => loadVendor(v.name));
+      const tasks = vendorDefs.filter(v=>v.supported).map(v => loadVendor(v.name));
       await Promise.all(tasks);
       render();
     },250); };
+
   $('#searchBtn').onclick=()=>{ const input=$('#search'); if(input){ input.dispatchEvent(new Event('input',{bubbles:true})); } }
+
+  // Photo search
+  $('#photoBtn').onclick = ()=> $('#photoInput').click();
+  $('#photoInput').onchange = ()=> { const f=$('#photoInput').files?.[0]; if (f) searchByPhoto(f); };
+
+  // Chat assistant
+  $('#chatFab').onclick = openChat;
+  $('#chatClose').onclick = closeChat;
+  $('#chatForm').onsubmit = async (e)=>{
+    e.preventDefault();
+    const txt = $('#chatInput').value.trim();
+    if(!txt) return;
+    addChatMsg('user', `<div class="me-text">${txt}</div>`);
+    $('#chatInput').value='';
+    await assistantRespond(txt);
+  };
+
   $('#refreshBtn').onclick=refreshWatches;
 
   initSignupUI(); captureReferral(); await loadRates();
 
   const startTerm=defaultQuery(); query=startTerm; const se=$('#search'); if(se) se.value=startTerm;
 
-  const tasks = vendorDefs.map(v => loadVendor(v.name));
+  const tasks = vendorDefs.filter(v=>v.supported).map(v => loadVendor(v.name));
   await Promise.all(tasks);
   render();
 });
