@@ -1,16 +1,16 @@
 <!doctype html>
-<html lang="en" dir="ltr">
+<html lang="en" dir="ltr" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>PriceScanner — Compare across 10 platforms</title>
-  <meta name="description" content="Compare prices from trusted platforms. Set alerts, choose your language & currency, and get the best deal safely.">
+  <title>PriceScanner — Compare Amazon, eBay & AliExpress (Image Search + Assistant)</title>
+  <meta name="description" content="PriceScanner compares prices across Amazon, eBay and AliExpress. Try image search or ask the shopping assistant to describe what you need — get the best deal fast.">
   <link rel="icon" href="logo.svg">
   <link rel="stylesheet" href="styles.css">
 
   <link rel="canonical" href="https://nadiro1985.github.io/PriceScanner/">
-  <meta property="og:title" content="PriceScanner — Compare across 10 platforms">
-  <meta property="og:description" content="Find the best price fast. Trusted partners: Amazon, eBay, AliExpress, Shopee, Lazada, Temu, Walmart, Etsy, Best Buy, Target.">
+  <meta property="og:title" content="PriceScanner — Compare Amazon, eBay & AliExpress">
+  <meta property="og:description" content="Search once, compare everywhere. Image search + shopping assistant. Amazon, eBay, AliExpress. Shopee, Etsy & Alibaba coming soon.">
   <meta property="og:type" content="website">
   <meta property="og:image" content="og-1200x630.png">
   <meta property="og:image:width" content="1200">
@@ -31,69 +31,67 @@
     }
   }
   </script>
-
-  <style>
-    .heroWrap{position:relative; overflow:hidden; border-radius:16px}
-    .heroWrap video{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:.18}
-    .heroContent{position:relative; padding:24px 16px}
-    .trustRow{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:10px; font-size:13px}
-    .trustBadge{border:1px solid rgba(0,0,0,.1); border-radius:999px; padding:6px 10px; background:#fff}
-    .appBadges{display:flex; gap:10px; align-items:center}
-    .smallNote{font-size:12px; color:#64748b}
-    .topBar{display:flex; align-items:center; gap:12px; margin-bottom:12px}
-    .spacer{flex:1}
-    .topControls{display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end}
-    .btn-sm{padding:.45rem .7rem; font-weight:700; border:1px solid rgba(0,0,0,.12); border-radius:12px; background:linear-gradient(90deg,var(--brand1,#4f46e5),var(--brand2,#7c3aed)); color:#fff}
-    .select.small{padding:.45rem .6rem; border-radius:12px; border:1px solid rgba(0,0,0,.12); background:#fff}
-    .sr-only{position:absolute; left:-9999px}
-    #toast{aria-live:polite}
-    @media (max-width:640px){ .topControls{justify-content:flex-end} }
-  </style>
 </head>
 <body>
-  <div class="container" style="padding:24px 16px">
+  <div class="container pad">
     <div class="heroWrap">
       <video autoplay muted loop playsinline preload="none" poster="hero-poster.jpg" src="hero.mp4"></video>
+
+      <!-- Motion layer (lightweight CSS animation, no library) -->
+      <div class="motionLayer" aria-hidden="true">
+        <div class="floatIcon cart">🛒</div>
+        <div class="floatIcon tag">🏷️</div>
+        <div class="floatIcon box">📦</div>
+      </div>
+
       <div class="heroContent">
         <div class="topBar">
           <div class="logoWrap">
-            <img id="brandLogo" src="logo.svg" alt="logo">
+            <img id="brandLogo" src="logo.svg" alt="PriceScanner logo" width="36" height="36">
             <div id="brandName" class="logoText">PriceScanner</div>
           </div>
+
           <div class="spacer"></div>
+
           <div class="topControls">
+            <button id="themeToggle" class="btn-icon" type="button" title="Toggle dark mode" aria-label="Toggle dark mode">🌙</button>
             <button id="openSignup" class="btn-sm" type="button" title="Sign in / Sign up for alerts">Sign in</button>
-            <span id="lblLang" class="sr-only">Language</span>
+
+            <label id="lblLang" class="sr-only" for="lang">Language</label>
             <select id="lang" class="select small" aria-labelledby="lblLang">
               <option value="en">English</option><option value="ar">العربية</option>
               <option value="fr">Français</option><option value="es">Español</option><option value="zh">中文</option>
             </select>
-            <span id="lblCurrency" class="sr-only">Currency</span>
+
+            <label id="lblCurrency" class="sr-only" for="currency">Currency</label>
             <select id="currency" class="select small" aria-labelledby="lblCurrency">
               <option>SGD</option><option>USD</option><option>EUR</option>
             </select>
           </div>
         </div>
 
-        <h1 id="tagline" class="heroTitle" style="font-size:40px;margin:6px 0">Find the best price, fast</h1>
-        <p style="color:#475569;max-width:780px">
-          Search once, compare everywhere. We highlight offers from reliable platforms so your money stays safe.
-          You might find cheaper elsewhere, but with us you get <b>trusted partners</b> and <b>buyer protection</b>.
+        <h1 id="tagline" class="heroTitle">Find the best price, fast</h1>
+        <p class="heroSub">
+          One search to compare trusted platforms. Try <b>image search</b> or ask our <b>shopping assistant</b> to describe what you need.
           <br><span class="smallNote">We may earn a commission from partner links.</span>
         </p>
-        <div class="row" style="margin-top:12px">
-          <input id="search" class="input" placeholder="Search products…" style="flex:1 1 auto" aria-label="Search products">
-          <button id="searchBtn" class="btn btn-primary" type="button">Search</button>
-        </div>
 
-        <div class="row" style="margin-top:10px; align-items:center">
-          <span style="font-size:13px;color:#64748b" id="lblSort">Sort by</span>
+        <form class="row searchBar" onsubmit="return false" role="search" aria-label="Product search">
+          <input id="search" class="input" placeholder="Search products…" style="flex:1 1 auto" aria-label="Search products">
+          <input id="photoInput" type="file" accept="image/*" capture="environment" hidden>
+          <button id="photoBtn" class="btn" type="button" title="Search by photo" aria-label="Search by photo">📷 Photo</button>
+          <button id="searchBtn" class="btn btn-primary" type="button">Search</button>
+        </form>
+
+        <div class="row controlsRow">
+          <label for="sort" class="controlLabel" id="lblSort">Sort by</label>
           <select id="sort" class="select" aria-labelledby="lblSort">
             <option value="priceAsc">Price: Low to High</option>
             <option value="priceDesc">Price: High to Low</option>
             <option value="rating">Rating</option>
           </select>
-          <span style="font-size:13px;color:#64748b" id="lblShip">Max ship days</span>
+
+          <label for="shipMax" class="controlLabel" id="lblShip">Max ship days</label>
           <select id="shipMax" class="select" aria-labelledby="lblShip">
             <option value="">Any</option>
             <option value="3">≤ 3</option>
@@ -105,40 +103,39 @@
 
         <div class="trustRow">
           <span class="smallNote">Trusted platforms:</span>
-          <span class="trustBadge">Amazon</span>
-          <span class="trustBadge">eBay</span>
-          <span class="trustBadge">AliExpress</span>
-          <span class="trustBadge">Shopee</span>
-          <span class="trustBadge">Lazada</span>
-          <span class="trustBadge">Temu</span>
-          <span class="trustBadge">Walmart</span>
-          <span class="trustBadge">Etsy</span>
-          <span class="trustBadge">Best Buy</span>
-          <span class="trustBadge">Target</span>
-          <span class="smallNote">We prioritize safety. Buying elsewhere may be cheaper, but not guaranteed safe.</span>
+          <span class="trustBadge trust-amazon">Amazon</span>
+          <span class="trustBadge trust-ebay">eBay</span>
+          <span class="trustBadge trust-aliexpress">AliExpress</span>
+          <span class="trustBadge trust-shopee">Shopee <em>— coming soon</em></span>
+          <span class="trustBadge trust-etsy">Etsy <em>— coming soon</em></span>
+          <span class="trustBadge trust-alibaba">Alibaba <em>— coming soon</em></span>
+          <span class="smallNote">More platforms are coming soon.</span>
         </div>
       </div>
     </div>
 
     <div class="row" style="align-items:center; margin-top:16px">
       <div style="flex:1 1 600px">
-        <div style="margin-top:10px;font-size:13px;color:#64748b" id="lblSources">Sources (click to include/exclude):</div>
-        <div id="sources" class="row" style="margin-top:6px"></div>
+        <div class="sourcesTitle" id="lblSources">Sources (click to include/exclude):</div>
+        <div id="sources" class="row sourcesRow"></div>
       </div>
       <aside class="card sidebar">
-        <div style="padding:16px">
-          <div style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase" id="lblWatchlist">Watchlist</div>
+        <div class="pad-sm">
+          <div class="sidebarTitle" id="lblWatchlist">Watchlist</div>
           <button id="refreshBtn" class="btn" style="margin:10px 0">Refresh</button>
-          <div id="watchlist" style="display:flex;flex-direction:column;gap:10px"></div>
+          <div id="watchlist" class="watchlist"></div>
         </div>
       </aside>
     </div>
   </div>
 
-  <section class="container" style="padding:8px 16px 24px"><div id="grid" class="grid"></div></section>
+  <section class="container pad-b">
+    <div id="grid" class="grid"></div>
+  </section>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <section class="container" style="padding:8px 16px 24px">
+  <section class="container pad-b">
     <div class="appBadges">
       <a class="btn" href="#" aria-label="Google Play (coming soon)">Google Play (coming soon)</a>
       <a class="btn" href="#" aria-label="App Store (coming soon)">App Store (coming soon)</a>
@@ -146,9 +143,9 @@
   </section>
 
   <footer class="footer">
-    <div class="container" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
-      <div>© <span id="year"></span> <span id="brandFooter">PriceScanner</span> • 10 platforms</div>
-      <div style="display:flex;gap:12px;font-size:14px">
+    <div class="container footerInner">
+      <div>© <span id="year"></span> <span id="brandFooter">PriceScanner</span> • 6 platforms (3 live, 3 coming soon)</div>
+      <div class="footerLinks">
         <a href="admin.html">Admin</a>
         <a href="privacy.html" rel="nofollow">Privacy</a>
         <a href="terms.html" rel="nofollow">Terms</a>
@@ -156,6 +153,20 @@
       </div>
     </div>
   </footer>
+
+  <!-- Floating Chat Assistant (no external keys) -->
+  <button id="chatFab" class="chat-fab" aria-label="Open shopping assistant">🛍️</button>
+  <div id="chatPanel" class="chat-panel" aria-live="polite" aria-label="Shopping assistant" hidden>
+    <div class="chat-head">
+      <div class="chat-title">Shopping Assistant</div>
+      <button id="chatClose" class="btn-icon" aria-label="Close assistant">✕</button>
+    </div>
+    <div id="chatMessages" class="chat-messages"></div>
+    <form id="chatForm" class="chat-form" onsubmit="return false">
+      <input id="chatInput" class="input chat-input" placeholder="Describe your ideal product (e.g., 'wireless headphones under $50 for running')" aria-label="Describe your product">
+      <button id="chatSend" class="btn btn-primary" type="submit">Send</button>
+    </form>
+  </div>
 
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
@@ -167,28 +178,7 @@
     });
   </script>
 
-  <!-- Signup / Verify Modal (accessible) -->
-  <div id="signupModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); align-items:center; justify-content:center;"
-       role="dialog" aria-modal="true" aria-labelledby="suTitle">
-    <div style="background:#fff; padding:16px; border-radius:12px; width:90%; max-width:420px">
-      <h3 id="suTitle" style="margin:0 0 8px 0; font-weight:800">Get discount alerts</h3>
-      <p id="signupStep1">
-        <label for="suEmail">Email</label><br>
-        <input id="suEmail" class="input" placeholder="you@example.com" autocomplete="email">
-        <button id="suSend" class="btn btn-primary" style="margin-top:8px">Send code</button>
-      </p>
-      <p id="signupStep2" style="display:none">
-        <label for="suCode">Verification code</label><br>
-        <input id="suCode" class="input" placeholder="6-digit code" inputmode="numeric" maxlength="6">
-        <button id="suVerify" class="btn btn-primary" style="margin-top:8px">Verify</button>
-      </p>
-      <p id="signupMsg" style="color:#64748b; font-size:13px; margin-top:8px"></p>
-      <div style="margin-top:12px; display:flex; gap:8px; justify-content:flex-end">
-        <button id="suClose" class="btn">Close</button>
-      </div>
-    </div>
-  </div>
-
-  <script defer src="script.js?v=40"></script>
+  <!-- Your app script -->
+  <script defer src="script.js?v=41"></script>
 </body>
 </html>
