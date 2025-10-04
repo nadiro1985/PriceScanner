@@ -1,10 +1,8 @@
 // === CONFIG / STATE ===
 const WORKER_BASE = "https://pricescanner.b48rptrywg.workers.dev";
-
-// If you add ?debug=1 to your page URL, it'll be passed through to Worker calls.
 const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
 
-// Platforms: keep Amazon, eBay, AliExpress (live); keep Shopee, Etsy, Alibaba as coming soon
+// Keep: Amazon, eBay, AliExpress live. Shopee, Etsy, Alibaba = coming soon
 const vendorDefs = [
   { name: "Amazon",     slug: "amazon",     supported: true,  color: "blue" },
   { name: "eBay",       slug: "ebay",       supported: true,  color: "green" },
@@ -13,8 +11,7 @@ const vendorDefs = [
   { name: "Etsy",       slug: "etsy",       supported: false, comingSoon: true, color: "green" },
   { name: "Alibaba",    slug: "alibaba",    supported: false, comingSoon: true, color: "blue" },
 ];
-
-let enabled       = vendorDefs.filter(v => v.supported).map(v => v.name); // live platforms ON by default
+let enabled       = vendorDefs.filter(v => v.supported).map(v => v.name);
 
 let currency    = "SGD";
 let sortBy      = "priceAsc";
@@ -26,7 +23,6 @@ let watches     = JSON.parse(localStorage.getItem('ps.watches')||"[]");
 let lang        = localStorage.getItem('ps.lang') || 'en';
 let theme       = localStorage.getItem('ps.theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 let lastFocusedEl = null;
-
 const offersByVendor = Object.fromEntries(vendorDefs.map(v => [v.name, []]));
 
 // i18n
@@ -94,8 +90,8 @@ function outUrl(item){
   return `${WORKER_BASE}/out?${params.toString()}`;
 }
 
-// ---- AliExpress enrichment: fetch live detail price for top N results ----
-const AE_DETAIL_ENRICH_COUNT = 0; // tweak if needed
+// ---- AliExpress enrichment (optional) ----
+const AE_DETAIL_ENRICH_COUNT = 0;
 async function enrichAliDetails(items){
   const tasks = items.slice(0, AE_DETAIL_ENRICH_COUNT).map(async (it) => {
     if (!it || !it.id) return it;
@@ -122,12 +118,7 @@ async function enrichAliDetails(items){
 async function loadVendor(vendor){
   const def = vendorDefs.find(v => v.name === vendor); if (!def) return;
   offersByVendor[vendor] = [];
-
-  // Skip vendors that are not yet supported
-  if (!def.supported) {
-    console.info(`[${vendor}] coming soon; skipping network call.`);
-    return;
-  }
+  if (!def.supported) { console.info(`[${vendor}] coming soon; skipping network call.`); return; }
 
   const term=(query||"").trim(); if(!enabled.includes(vendor)||!WORKER_BASE||!term) return;
   try{
@@ -147,10 +138,7 @@ async function loadVendor(vendor){
       vendor
     }));
 
-    // Optional: get fresher AliExpress prices via /ae/price
-    if (vendor === "AliExpress" && arr.length) {
-      arr = await enrichAliDetails(arr);
-    }
+    if (vendor === "AliExpress" && arr.length) arr = await enrichAliDetails(arr);
 
     offersByVendor[vendor] = arr;
     console.log(`[${vendor}] loaded:`, arr.length, 'items for', term);
@@ -190,7 +178,7 @@ function vendorColorStyle(name){
   return 'var(--accent-1)';
 }
 
-// signup modal
+// signup modal (unchanged)
 function initSignupUI(){
   const modal=$('#signupModal'), openBtn=$('#openSignup'), closeBtn=$('#suClose'),
         step1=$('#signupStep1'), step2=$('#signupStep2'), msg=$('#signupMsg'),
@@ -260,7 +248,7 @@ async function pushWatchlistToServer(){
   try{ await fetch(`${WORKER_BASE}/watchlist`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)}); }catch{}
 }
 
-// render items + watchlist
+// ----- RENDER (UPDATED CARD LAYOUT) -----
 function render(){
   renderLabels();
 
@@ -289,27 +277,30 @@ function render(){
   const grid = $('#grid'); grid.innerHTML='';
   data.forEach(item=>{
     const p = priceInSelected(item);
-    const ship = item.shipDays || estimateShipDays(item.vendor, userCountry);
-    const card = document.createElement('div'); card.className='card card-hover';
+    const shipDays = item.shipDays || estimateShipDays(item.vendor, userCountry);
 
+    const card = document.createElement('div');
+    card.className='card card-hover';
     card.innerHTML = `
       <div class="media">
-        <img loading="lazy" width="600" height="338" src="${item.image}" alt="${item.title} product image"/>
+        <img loading="lazy" src="${item.image}" alt="${item.title} product image"/>
       </div>
       <div class="cardBody">
-        <div class="titleRow">
-          <h3 class="title">${item.title}</h3>
-        </div>
+        <h3 class="title clamp-2">${item.title}</h3>
+        <div class="price">${fmt(p)}</div>
+
         <div class="metaRow">
           <span class="badge vendor" data-vendor="${item.vendor}">${item.vendor}</span>
-          <span class="badge">⭐ ${item.rating||4.2}</span>
-          <span class="badge">🚚 ~${ship}d</span>
+          <span class="badge">⭐ ${Number(item.rating||4.2).toFixed(1)}</span>
+          <span class="badge">🚚 ~${shipDays}d</span>
         </div>
-        <div class="priceRow">
-          <div class="price">${fmt(p)}</div>
-          <div class="shipMeta"><div>${item.shipping||'—'}</div><div>${item.shipTime||'—'}</div></div>
+
+        <div class="shipMeta">
+          ${item.shipping && item.shipping !== '—' ? item.shipping : 'Shipping calculated at checkout'}
+          ${item.shipTime && item.shipTime !== '—' ? ' • ' + item.shipTime : ''}
         </div>
-        <div class="row actions">
+
+        <div class="actions">
           <a class="btn btn-primary" href="${outUrl(item)}" target="_blank" rel="sponsored nofollow noopener">View Deal</a>
           <button class="btn watchBtn">Watch</button>
         </div>
@@ -366,14 +357,13 @@ async function refreshWatches(){
 }
 function toast(m){ const t=$('#toast'); if(!t) return; t.textContent=m; t.style.display='block'; setTimeout(()=>t.style.display='none',3500); }
 
-// --- Search by Photo (on-demand TF.js + MobileNet) ---
+/* ============ Search by Photo & Chat Assistant (unchanged) ============ */
 let mobilenetModel = null;
 function loadScript(src){ return new Promise((resolve,reject)=>{ const s=document.createElement('script'); s.src=src; s.async=true; s.onload=resolve; s.onerror=reject; document.head.appendChild(s); });}
 async function ensureMobileNet(){
   if (mobilenetModel) return mobilenetModel;
   await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js');
   await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.0');
-  // global "mobilenet" is provided by the model script
   mobilenetModel = await mobilenet.load();
   return mobilenetModel;
 }
@@ -399,7 +389,7 @@ async function searchByPhoto(file){
   }
 }
 
-// --- Chat Assistant ---
+// Chat assistant helpers
 function openChat(){ $('#chatPanel').hidden=false; $('#chatInput')?.focus(); }
 function closeChat(){ $('#chatPanel').hidden=true; }
 function addChatMsg(role, html){
@@ -412,27 +402,20 @@ function addChatMsg(role, html){
 }
 function parseIntent(text){
   const msg = String(text||'').toLowerCase();
-
-  // Vendors requested
   const vendors = vendorDefs.map(v=>v.name.toLowerCase());
   const requested = vendors.filter(v => msg.includes(v.toLowerCase()));
   const useVendors = requested.length ? requested : vendorDefs.filter(v=>v.supported).map(v=>v.name.toLowerCase());
-
-  // Price range
   let min=null, max=null;
   const m1 = msg.match(/\$?\s*(\d+)\s*[-to]\s*\$?\s*(\d+)/); if(m1){ min=+m1[1]; max=+m1[2]; }
-  const m2 = msg.match(/under|below|less than\s*\$?\s*(\d+)/); if(m2){ max=+msg.match(/(\d+)/)[1]; }
-  const m3 = msg.match(/over|above|more than\s*\$?\s*(\d+)/); if(m3){ min=+msg.match(/(\d+)/)[1]; }
-  const m4 = msg.match(/around|about\s*\$?\s*(\d+)/); if(m4){ const n=+msg.match(/(\d+)/)[1]; min=Math.floor(n*0.8); max=Math.ceil(n*1.2); }
-
-  // Clean keywords (remove vendor names and price words)
+  const m2 = msg.match(/(?:under|below|less than)\s*\$?\s*(\d+)/); if(m2){ max=+m2[1]; }
+  const m3 = msg.match(/(?:over|above|more than)\s*\$?\s*(\d+)/); if(m3){ min=+m3[1]; }
+  const m4 = msg.match(/(?:around|about)\s*\$?\s*(\d+)/); if(m4){ const n=+m4[1]; min=Math.floor(n*0.8); max=Math.ceil(n*1.2); }
   let cleaned = msg.replace(/\$?\d+(\s*[-to]\s*\$?\d+)?/g,'')
                    .replace(/\b(under|below|less than|over|above|more than|around|about)\b/g,'');
   vendorDefs.forEach(v=> cleaned = cleaned.replace(new RegExp(v.name,'ig'),''));
   cleaned = cleaned.replace(/\s+/g,' ').trim();
   return { query: cleaned || msg, vendors: useVendors, min, max };
 }
-
 async function searchWorker(slug, q){
   const url = new URL(`${WORKER_BASE}/search/${slug}`);
   url.searchParams.set("q", q);
@@ -442,14 +425,12 @@ async function searchWorker(slug, q){
   const d = await r.json().catch(()=>({results:[]}));
   return Array.isArray(d.results) ? d.results : [];
 }
-
 function withinRange(item, min, max){
   const p = priceInSelected(item);
   if (min!=null && p < min) return false;
   if (max!=null && p > max) return false;
   return true;
 }
-
 function resultCard(item){
   const p = fmt(priceInSelected(item));
   return `
@@ -462,36 +443,22 @@ function resultCard(item){
       </div>
     </div>`;
 }
-
 async function assistantRespond(userText){
   const intent = parseIntent(userText);
   addChatMsg('bot', `<div class="bot-text">Let me look for <b>${intent.query}</b>${intent.min||intent.max?` in your price range${intent.min?` ≥ ${fmt(intent.min)}`:''}${intent.max?` ≤ ${fmt(intent.max)}`:''}:`:'...'}</div>`);
-
-  // Only search supported vendors
   const live = vendorDefs.filter(v=>v.supported && intent.vendors.includes(v.name.toLowerCase()));
   const queries = live.map(v => searchWorker(v.slug, intent.query));
   const resultsByVendor = await Promise.all(queries);
-
   let pool = [];
   resultsByVendor.forEach((arr, i) => {
     const vendorName = live[i].name;
     (arr||[]).forEach(o => pool.push({ ...o, vendor: vendorName }));
   });
-
-  if (intent.min!=null || intent.max!=null){
-    pool = pool.filter(o => withinRange(o, intent.min, intent.max));
-  }
-
-  // Sort: prefer price then rating
+  if (intent.min!=null || intent.max!=null){ pool = pool.filter(o => withinRange(o, intent.min, intent.max)); }
   pool.sort((a,b) => priceInSelected(a) - priceInSelected(b) || (b.rating||0)-(a.rating||0));
-
-  if (!pool.length){
-    addChatMsg('bot', `<div class="bot-text">I couldn’t find great matches. Try adding brand/model keywords or widening your price range.</div>`);
-    return;
-  }
-
+  if (!pool.length){ addChatMsg('bot', `<div class="bot-text">I couldn’t find great matches. Try adding brand/model keywords or widening your price range.</div>`); return; }
   const top = pool.slice(0,3).map(resultCard).join('');
-  addChatMsg('bot', `<div class="bot-cards">${top}</div>`);
+  addChatMsg('bot', `<div class="chat-cards">${top}</div>`);
 }
 
 // personalization
@@ -501,23 +468,18 @@ function defaultQuery(){ const urlQ = new URLSearchParams(location.search).get('
 // BOOT
 let debounce;
 window.addEventListener('DOMContentLoaded', async ()=>{
-  // Theme toggle
   $('#themeToggle')?.addEventListener('click', ()=> applyTheme( (localStorage.getItem('ps.theme')==='dark') ? 'light' : 'dark' ));
-
-  // Language / UI controls
   const selLang=$('#lang'); if(selLang){ selLang.value=lang; selLang.onchange=()=>{ lang=selLang.value; localStorage.setItem('ps.lang',lang); render(); } }
   $('#currency').onchange=(e)=>{ currency=e.target.value; render(); }
   $('#sort').onchange=(e)=>{ sortBy=e.target.value; render(); }
   $('#shipMax').onchange=(e)=>{ maxShipDays=e.target.value; render(); }
 
-  // Search box
   $('#search').oninput=(e)=>{ query=e.target.value; localStorage.setItem('ps.lastQuery',query);
     clearTimeout(debounce); debounce=setTimeout(async()=>{
       const tasks = vendorDefs.filter(v=>v.supported).map(v => loadVendor(v.name));
       await Promise.all(tasks);
       render();
     },250); };
-
   $('#searchBtn').onclick=()=>{ const input=$('#search'); if(input){ input.dispatchEvent(new Event('input',{bubbles:true})); } }
 
   // Photo search
