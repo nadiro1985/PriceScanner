@@ -77,7 +77,15 @@ img { display:block; max-width:100%; height:auto; }
 .controlLabel{ font-size:13px; color: var(--muted) }
 .searchBar { margin-top:12px; }
 .controlsRow { margin-top:10px; flex-wrap:wrap; gap:12px; }
+/* … (everything from your current styles.css stays as-is) … */
 
+/* Add/override these lines anywhere after .logoWrap definition */
+.brandLogo{ width:48px; height:48px; }
+@media (max-width:640px){
+  .brandLogo{ width:40px; height:40px; }
+}
+
+/* (The rest of styles.css from the previous version remains unchanged) */
 /* Trust chips */
 .trustRow{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:10px; font-size:13px}
 .trustBadge{border:1px solid var(--border); border-radius:999px; padding:6px 10px; background:var(--card)}
