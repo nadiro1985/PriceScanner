@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>PriceScanner — Compare Amazon, eBay & AliExpress (Image Search + Assistant)</title>
   <meta name="description" content="PriceScanner compares prices across Amazon, eBay and AliExpress. Try image search or ask the shopping assistant to describe what you need — get the best deal fast.">
+  <meta name="theme-color" content="#146EB4">
   <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=45">
 
   <link rel="canonical" href="https://nadiro1985.github.io/PriceScanner/">
   <meta property="og:title" content="PriceScanner — Compare Amazon, eBay & AliExpress">
@@ -18,6 +19,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="robots" content="index,follow">
 
+  <!-- SEO: WebSite + Organization -->
   <script type="application/ld+json">
   {
     "@context":"https://schema.org",
@@ -31,13 +33,22 @@
     }
   }
   </script>
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"Organization",
+    "name":"PriceScanner",
+    "url":"https://nadiro1985.github.io/PriceScanner/",
+    "logo":"https://nadiro1985.github.io/PriceScanner/logo.svg"
+  }
+  </script>
 </head>
 <body>
   <div class="container pad">
     <div class="heroWrap">
       <video autoplay muted loop playsinline preload="none" poster="hero-poster.jpg" src="hero.mp4"></video>
 
-      <!-- Motion layer (lightweight CSS animation, no library) -->
+      <!-- Simple ambient motion -->
       <div class="motionLayer" aria-hidden="true">
         <div class="floatIcon cart">🛒</div>
         <div class="floatIcon tag">🏷️</div>
@@ -154,7 +165,7 @@
     </div>
   </footer>
 
-  <!-- Floating Chat Assistant (no external keys) -->
+  <!-- Floating Chat Assistant -->
   <button id="chatFab" class="chat-fab" aria-label="Open shopping assistant">🛍️</button>
   <div id="chatPanel" class="chat-panel" aria-live="polite" aria-label="Shopping assistant" hidden>
     <div class="chat-head">
@@ -178,7 +189,6 @@
     });
   </script>
 
-  <!-- Your app script -->
-  <script defer src="script.js?v=41"></script>
+  <script defer src="script.js?v=45"></script>
 </body>
 </html>
