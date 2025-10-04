@@ -6,8 +6,10 @@
   <title>PriceScanner — Compare Amazon, eBay & AliExpress (Image Search + Assistant)</title>
   <meta name="description" content="PriceScanner compares prices across Amazon, eBay and AliExpress. Try image search or ask the shopping assistant to describe what you need — get the best deal fast.">
   <meta name="theme-color" content="#146EB4">
-  <link rel="icon" href="logo.svg">
-  <link rel="stylesheet" href="styles.css?v=45">
+  <!-- cache‑busted favicon -->
+  <link rel="icon" href="logo.svg?v=5">
+  <link rel="mask-icon" href="logo.svg?v=5" color="#146EB4">
+  <link rel="stylesheet" href="styles.css?v=46">
 
   <link rel="canonical" href="https://nadiro1985.github.io/PriceScanner/">
   <meta property="og:title" content="PriceScanner — Compare Amazon, eBay & AliExpress">
@@ -58,7 +60,8 @@
       <div class="heroContent">
         <div class="topBar">
           <div class="logoWrap">
-            <img id="brandLogo" src="logo.svg" alt="PriceScanner logo" width="36" height="36">
+            <!-- bigger logo + cache-bust -->
+            <img id="brandLogo" class="brandLogo" src="logo.svg?v=5" alt="PriceScanner logo" width="48" height="48">
             <div id="brandName" class="logoText">PriceScanner</div>
           </div>
 
@@ -84,7 +87,6 @@
         <h1 id="tagline" class="heroTitle">Find the best price, fast</h1>
         <p class="heroSub">
           One search to compare trusted platforms. Try <b>image search</b> or ask our <b>shopping assistant</b> to describe what you need.
-          <br><span class="smallNote">We may earn a commission from partner links.</span>
         </p>
 
         <form class="row searchBar" onsubmit="return false" role="search" aria-label="Product search">
@@ -189,6 +191,6 @@
     });
   </script>
 
-  <script defer src="script.js?v=45"></script>
+  <script defer src="script.js?v=46"></script>
 </body>
 </html>
