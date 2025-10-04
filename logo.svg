@@ -1,1 +1,28 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="240" height="56" viewBox="0 0 240 56"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#4f46e5"/><stop offset="100%" stop-color="#7c3aed"/></linearGradient></defs><rect rx="12" ry="12" width="56" height="56" fill="url(#g)"/><path d="M16 18h20l-2 10H18l-2-10zm4 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm14 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" fill="#fff"/><text x="66" y="38" font-family="Inter, system-ui, sans-serif" font-size="24" font-weight="900" fill="url(#g)">PriceScanner</text></svg>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="PriceScanner logo">
+  <defs>
+    <style>
+      .blue{fill:#146EB4}
+      .dark{fill:#1f2937}
+    </style>
+  </defs>
+  <!-- Cart -->
+  <g class="blue">
+    <path d="M36 72c-3.3 0-6-2.7-6-6s2.7-6 6-6l28 4c2.6.37 4.8 2.2 5.5 4.7l2.6 9.3H186c6.6 0 11.4 6.2 9.7 12.6l-10.2 38.7c-1.6 5.9-6.9 10-13 10H98.6c-6.1 0-11.4-4.1-13-10L66.2 84.9l-30.2-4.2z"/>
+    <rect x="82" y="110" width="64" height="36" rx="2" ry="2" fill="#0f5c9a"/>
+    <rect x="90" y="116" width="6" height="24" rx="1"/>
+    <rect x="102" y="116" width="6" height="24" rx="1"/>
+    <rect x="114" y="116" width="6" height="24" rx="1"/>
+    <rect x="126" y="116" width="6" height="24" rx="1"/>
+    <rect x="138" y="116" width="6" height="24" rx="1"/>
+    <circle cx="96" cy="188" r="14"/>
+    <circle cx="164" cy="188" r="14"/>
+  </g>
+  <!-- Magnifier -->
+  <g class="blue">
+    <circle cx="176" cy="108" r="40" fill="none" stroke="#146EB4" stroke-width="12"/>
+    <rect x="205" y="134" width="52" height="14" rx="7" ry="7" transform="rotate(45 231 141)"/>
+  </g>
+  <!-- Wordmark -->
+  <text x="128" y="236" class="dark" font-family="Inter,Segoe UI,Arial" font-size="28" font-weight="800" text-anchor="middle">PRICE SCANNER</text>
+</svg>
