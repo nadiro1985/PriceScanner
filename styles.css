@@ -10,7 +10,7 @@
   --badge-off: #fff7ed;
   --brand-blue: #146EB4;    /* Amazon-ish blue */
   --brand-red: #E31E3A;     /* AliExpress red */
-  --brand-green: #22C55E;   /* Fresh green */
+  --brand-green: #22C55E;   /* eBay-ish green */
   --accent-1: #4f46e5;
   --shadow: 0 8px 22px rgba(0,0,0,.08);
   --radius: 14px;
@@ -33,7 +33,6 @@ body {
 }
 img { display:block; max-width:100%; height:auto; }
 
-/* ---------- Layout ---------- */
 .container { max-width: 1200px; margin: 0 auto; }
 .pad { padding:24px 16px; }
 .pad-sm { padding:16px; }
@@ -49,7 +48,7 @@ img { display:block; max-width:100%; height:auto; }
 .heroTitle { font-size:40px; margin:6px 0; line-height:1.1; }
 .heroSub { color: var(--muted); max-width:780px; }
 
-/* Shopping motion */
+/* Motion layer from previous version */
 .motionLayer { position:absolute; inset:0; pointer-events:none; }
 .floatIcon { position:absolute; font-size:28px; opacity:.65; animation: drift 16s linear infinite; }
 .floatIcon.cart { left:8%; top:60%; animation-delay:0s; }
@@ -57,7 +56,6 @@ img { display:block; max-width:100%; height:auto; }
 .floatIcon.box  { left:45%; top:10%; animation-delay:8s; }
 @keyframes drift { 0%{ transform:translateY(0) rotate(0deg); } 50%{ transform:translateY(-18px) rotate(6deg);} 100%{ transform:translateY(0) rotate(0deg);} }
 
-/* ---------- Top bar ---------- */
 .topBar{display:flex; align-items:center; gap:12px; margin-bottom:12px}
 .logoWrap{display:flex; align-items:center; gap:10px}
 .logoText{font-weight:900; letter-spacing:.2px}
@@ -65,7 +63,6 @@ img { display:block; max-width:100%; height:auto; }
 .btn-sm{padding:.45rem .7rem; font-weight:700; border:1px solid var(--border); border-radius:12px; background:linear-gradient(90deg,var(--brand-blue),var(--brand-red),var(--brand-green)); color:#fff}
 .btn-icon{ width:36px; height:36px; border-radius:12px; border:1px solid var(--border); background: var(--card); box-shadow: var(--shadow); display:inline-grid; place-items:center; cursor:pointer; }
 
-/* ---------- Controls ---------- */
 .select { padding:.6rem .7rem; border-radius:12px; border:1px solid var(--border); background: var(--card); color:var(--text); }
 .select.small{padding:.45rem .6rem}
 .input { padding:.7rem .8rem; border-radius:12px; border:1px solid var(--border); background: var(--card); color:var(--text); width:100% }
@@ -73,7 +70,7 @@ img { display:block; max-width:100%; height:auto; }
 .searchBar { margin-top:12px; }
 .controlsRow { margin-top:10px; flex-wrap:wrap; gap:12px; }
 
-/* ---------- Trust row ---------- */
+/* Trust chips */
 .trustRow{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:10px; font-size:13px}
 .trustBadge{border:1px solid var(--border); border-radius:999px; padding:6px 10px; background:var(--card)}
 .trust-amazon{ border-color: var(--brand-blue); }
@@ -81,35 +78,52 @@ img { display:block; max-width:100%; height:auto; }
 .trust-aliexpress{ border-color: var(--brand-red); }
 .trust-shopee, .trust-etsy, .trust-alibaba{ opacity:.8 }
 
-/* ---------- Cards & Grid ---------- */
-.grid { display:grid; grid-template-columns: repeat(12, 1fr); gap:14px; }
-@media (max-width: 1200px){ .grid{ grid-template-columns: repeat(9, 1fr);} }
-@media (max-width: 900px){ .grid{ grid-template-columns: repeat(6, 1fr);} }
-@media (max-width: 640px){ .grid{ grid-template-columns: repeat(2, 1fr);} }
+/* ---------- RESULTS GRID (FIX) ---------- */
+.grid {
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); /* <-- key fix */
+  gap:16px;
+}
 
-.card { background: var(--card); border:1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow:hidden; }
+/* ---------- Cards ---------- */
+.card {
+  background: var(--card);
+  border:1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  height:100%;
+}
 .card-hover:hover{ transform: translateY(-2px); transition: transform .2s ease; }
-.media { position:relative; width:100%; padding-top:56%; background: rgba(0,0,0,.06); }
-.media img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
-.cardBody{ padding:16px; display:flex; flex-direction:column; gap:6px; }
-.title{ font-size:16px; font-weight:800; line-height:1.25; margin:0 }
-.metaRow{ display:flex; gap:8px; font-size:13px; margin-top:4px }
-.priceRow{ display:flex; justify-content:space-between; align-items:center; margin-top:6px }
-.price{ font-size:22px; font-weight:900 }
-.shipMeta{ font-size:12px; color: var(--muted); text-align:right }
-.actions{ margin-top:10px }
 
-.badge{ border:1px solid var(--border); border-radius:999px; padding:6px 10px; background:var(--card); font-weight:600; font-size:12px; }
+/* uniform media area */
+.media { position:relative; width:100%; aspect-ratio: 4 / 3; background: rgba(0,0,0,.06); }
+.media img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+
+/* body */
+.cardBody{ padding:16px; display:flex; flex-direction:column; gap:8px; height:100%; }
+.title{ font-size:16px; font-weight:900; line-height:1.25; margin:0 }
+.clamp-2{
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+  min-height:2.5em; /* maintain equal height for 2 lines */
+}
+.price{ font-size:22px; font-weight:900; }
+
+.metaRow{ display:flex; gap:8px; font-size:12px; margin-top:2px; flex-wrap:wrap; }
+.badge{ border:1px solid var(--border); border-radius:999px; padding:5px 10px; background:var(--card); font-weight:700; font-size:12px; }
 .badge.vendor[data-vendor="Amazon"]{ border-color: var(--brand-blue); }
 .badge.vendor[data-vendor="eBay"]{ border-color: var(--brand-green); }
 .badge.vendor[data-vendor="AliExpress"]{ border-color: var(--brand-red); }
 
-.sidebar { min-width:260px; }
-.sidebarTitle{ font-size:12px; font-weight:800; color: var(--muted); text-transform:uppercase }
-.watchlist{ display:flex; flex-direction:column; gap:10px }
-.thinBorder{ border:1px solid var(--border); }
-.wlTitle{ font-weight:800 }
-.wlMeta{ font-size:12px; color: var(--muted); margin:6px 0 }
+.shipMeta{ font-size:12px; color: var(--muted); }
+
+.priceRow{ display:flex; justify-content:space-between; align-items:center; margin-top:4px }
+.actions{ margin-top:auto; display:flex; gap:8px; } /* pin buttons to bottom */
 
 .btn { padding:.7rem .9rem; border-radius:12px; border:1px solid var(--border); background: var(--card); color: var(--text); font-weight:800; cursor:pointer }
 .btn:hover{ filter: brightness(1.03); }
@@ -120,16 +134,24 @@ img { display:block; max-width:100%; height:auto; }
 .sourcesTitle{ margin-top:10px; font-size:13px; color:var(--muted) }
 .sourcesRow{ margin-top:6px; flex-wrap: wrap; }
 
-/* ---------- Footer ---------- */
+/* Sidebar / watchlist */
+.sidebar { min-width:260px; }
+.sidebarTitle{ font-size:12px; font-weight:800; color: var(--muted); text-transform:uppercase }
+.watchlist{ display:flex; flex-direction:column; gap:10px }
+.thinBorder{ border:1px solid var(--border); }
+.wlTitle{ font-weight:800 }
+.wlMeta{ font-size:12px; color: var(--muted); margin:6px 0 }
+
+/* Footer */
 .footer { border-top:1px solid var(--border); margin-top:24px; }
 .footerInner { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; padding:14px 16px }
 .footerLinks a{ color: var(--text); opacity:.9; text-decoration:none }
 .footerLinks a:hover{ text-decoration:underline }
 
-/* ---------- Toast ---------- */
+/* Toast */
 .toast{ position:fixed; left:50%; transform:translateX(-50%); bottom:18px; background:var(--card); border:1px solid var(--border); padding:10px 14px; border-radius:10px; display:none; box-shadow: var(--shadow); z-index:50 }
 
-/* ---------- Chat Assistant ---------- */
+/* Chat Assistant (unchanged from previous version) */
 .chat-fab{ position:fixed; right:16px; bottom:16px; width:56px; height:56px; border-radius:16px; border:1px solid var(--border); background: linear-gradient(180deg, var(--brand-blue), var(--brand-red), var(--brand-green)); color:#fff; box-shadow: var(--shadow); font-size:24px; cursor:pointer; z-index:60 }
 .chat-panel{ position:fixed; right:16px; bottom:84px; width:360px; max-width:calc(100vw - 32px); background: var(--card); color:var(--text); border:1px solid var(--border); border-radius:16px; box-shadow: var(--shadow); display:flex; flex-direction:column; overflow:hidden; z-index:60 }
 .chat-head{ display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-bottom:1px solid var(--border); }
@@ -150,7 +172,7 @@ img { display:block; max-width:100%; height:auto; }
 .cc-title{ font-weight:800; font-size:14px }
 .cc-meta{ font-size:12px; color: var(--muted) }
 
-/* ---------- Misc ---------- */
+/* Small helpers */
 .smallNote{ font-size:12px; color:var(--muted) }
 .muted{ color: var(--muted) }
 .row.wrap .inline{ display:flex; align-items:center; gap:6px }
