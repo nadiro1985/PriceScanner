@@ -178,7 +178,7 @@ function vendorColorStyle(name){
   return 'var(--accent-1)';
 }
 
-// signup modal (unchanged)
+// signup modal
 function initSignupUI(){
   const modal=$('#signupModal'), openBtn=$('#openSignup'), closeBtn=$('#suClose'),
         step1=$('#signupStep1'), step2=$('#signupStep2'), msg=$('#signupMsg'),
@@ -248,7 +248,7 @@ async function pushWatchlistToServer(){
   try{ await fetch(`${WORKER_BASE}/watchlist`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)}); }catch{}
 }
 
-// ----- RENDER (UPDATED CARD LAYOUT) -----
+// ----- RENDER -----
 function render(){
   renderLabels();
 
@@ -357,7 +357,7 @@ async function refreshWatches(){
 }
 function toast(m){ const t=$('#toast'); if(!t) return; t.textContent=m; t.style.display='block'; setTimeout(()=>t.style.display='none',3500); }
 
-/* ============ Search by Photo & Chat Assistant (unchanged) ============ */
+/* ============ Search by Photo & Chat Assistant ============ */
 let mobilenetModel = null;
 function loadScript(src){ return new Promise((resolve,reject)=>{ const s=document.createElement('script'); s.src=src; s.async=true; s.onload=resolve; s.onerror=reject; document.head.appendChild(s); });}
 async function ensureMobileNet(){
@@ -389,7 +389,7 @@ async function searchByPhoto(file){
   }
 }
 
-// Chat assistant helpers
+// Chat assistant
 function openChat(){ $('#chatPanel').hidden=false; $('#chatInput')?.focus(); }
 function closeChat(){ $('#chatPanel').hidden=true; }
 function addChatMsg(role, html){
