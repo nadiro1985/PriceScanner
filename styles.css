@@ -2,16 +2,18 @@
 * { box-sizing: border-box; }
 :root {
   --bg: #ffffff;
-  --text: #0f172a;
+  --text: #0f172a;         /* nearly black for body text */
   --muted: #64748b;
   --card: #ffffff;
   --border: rgba(2,6,23,.08);
   --badge-on: #ecfdf5;
   --badge-off: #fff7ed;
+
   --brand-blue: #146EB4;    /* Amazon-ish blue */
   --brand-red: #E31E3A;     /* AliExpress red */
+  --brand-red-dark: #C81D31;
   --brand-green: #22C55E;   /* eBay-ish green */
-  --accent-1: #4f46e5;
+
   --shadow: 0 8px 22px rgba(0,0,0,.08);
   --radius: 14px;
 }
@@ -28,12 +30,14 @@
 
 html, body { height: 100%; }
 body {
-  margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";
-  background: var(--bg); color: var(--text);
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";
+  background: var(--bg);
+  color: var(--text);
 }
 img { display:block; max-width:100%; height:auto; }
 
-.container { max-width: 1200px; margin: 0 auto; }  /* Keep site width tidy */
+.container { max-width: 1280px; margin: 0 auto; }
 .pad { padding:24px 16px; }
 .pad-sm { padding:16px; }
 .pad-b { padding:8px 16px 24px; }
@@ -42,13 +46,17 @@ img { display:block; max-width:100%; height:auto; }
 .gap { gap:8px; }
 .spacer { flex:1; }
 
-.heroWrap { position:relative; overflow:hidden; border-radius:16px; background: linear-gradient(90deg, rgba(20,110,180,.12), rgba(227,49,58,.12), rgba(34,197,94,.12)); }
+/* Accessibility helper */
+.sr-only{ position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden; }
+
+.heroWrap { position:relative; overflow:hidden; border-radius:16px; background: linear-gradient(90deg, rgba(20,110,180,.10), rgba(227,49,58,.10), rgba(34,197,94,.10)); }
 .heroWrap video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:.18 }
 .heroContent { position:relative; padding:24px 16px }
-.heroTitle { font-size:40px; margin:6px 0; line-height:1.1; }
+.heroTitle { font-size:40px; margin:6px 0; line-height:1.1; color: var(--brand-blue); font-weight:900; }
 .heroSub { color: var(--muted); max-width:780px; }
+.logoText { font-weight:900; letter-spacing:.25px; color: var(--brand-blue); }
 
-/* Motion layer */
+/* Ambient motion */
 .motionLayer { position:absolute; inset:0; pointer-events:none; }
 .floatIcon { position:absolute; font-size:28px; opacity:.65; animation: drift 16s linear infinite; }
 .floatIcon.cart { left:8%; top:60%; animation-delay:0s; }
@@ -58,9 +66,9 @@ img { display:block; max-width:100%; height:auto; }
 
 .topBar{display:flex; align-items:center; gap:12px; margin-bottom:12px}
 .logoWrap{display:flex; align-items:center; gap:10px}
-.logoText{font-weight:900; letter-spacing:.2px}
 .topControls{display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end}
-.btn-sm{padding:.45rem .7rem; font-weight:700; border:1px solid var(--border); border-radius:12px; background:linear-gradient(90deg,var(--brand-blue),var(--brand-red),var(--brand-green)); color:#fff}
+
+.btn-sm{padding:.45rem .7rem; font-weight:800; border:1px solid var(--border); border-radius:12px; background:linear-gradient(90deg,#146EB4,#E31E3A,#22C55E); color:#fff}
 .btn-icon{ width:36px; height:36px; border-radius:12px; border:1px solid var(--border); background: var(--card); box-shadow: var(--shadow); display:inline-grid; place-items:center; cursor:pointer; }
 
 .select { padding:.6rem .7rem; border-radius:12px; border:1px solid var(--border); background: var(--card); color:var(--text); }
@@ -84,15 +92,15 @@ img { display:block; max-width:100%; height:auto; }
 .grid {
   display:grid;
   gap:16px;
-  grid-template-columns: repeat(5, 1fr) !important;  /* <= EXACTLY 5 on desktop */
+  grid-template-columns: repeat(5, 1fr) !important;  /* 5 items per row on desktop */
 }
 
-/* 6 per row on very wide screens */
+/* 6 per row on very wide displays */
 @media (min-width: 1500px){
   .grid { grid-template-columns: repeat(6, 1fr) !important; }
 }
 
-/* Downscale gracefully */
+/* Downscale nicely */
 @media (max-width: 1100px){
   .grid { grid-template-columns: repeat(4, 1fr) !important; }
 }
@@ -123,15 +131,15 @@ img { display:block; max-width:100%; height:auto; }
 .media img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
 
 .cardBody{ padding:16px; display:flex; flex-direction:column; gap:8px; height:100%; }
-.title{ font-size:16px; font-weight:900; line-height:1.25; margin:0 }
+.title{ font-size:16px; font-weight:900; line-height:1.25; margin:0; color: var(--text); }
 .clamp-2{
   display:-webkit-box;
   -webkit-line-clamp:2;
   -webkit-box-orient:vertical;
   overflow:hidden;
-  min-height:2.5em; /* consistent height */
+  min-height:2.5em;
 }
-.price{ font-size:22px; font-weight:900; }
+.price{ font-size:22px; font-weight:900; color: var(--text); }
 
 .metaRow{ display:flex; gap:8px; font-size:12px; margin-top:2px; flex-wrap:wrap; }
 .badge{ border:1px solid var(--border); border-radius:999px; padding:5px 10px; background:var(--card); font-weight:700; font-size:12px; }
@@ -141,23 +149,24 @@ img { display:block; max-width:100%; height:auto; }
 
 .shipMeta{ font-size:12px; color: var(--muted); }
 
-.priceRow{ display:flex; justify-content:space-between; align-items:center; margin-top:4px }
-.actions{ margin-top:auto; display:flex; gap:8px; } /* buttons pinned to bottom */
+.actions{ margin-top:auto; display:flex; gap:8px; }
 
+/* Buttons */
 .btn { padding:.7rem .9rem; border-radius:12px; border:1px solid var(--border); background: var(--card); color: var(--text); font-weight:800; cursor:pointer }
 .btn:hover{ filter: brightness(1.03); }
-.btn-primary { background: linear-gradient(90deg, var(--brand-blue), var(--brand-red), var(--brand-green)); color:#fff; border:none }
-.btn-mini { padding:.45rem .6rem; font-weight:800; border:1px solid var(--border); border-radius:10px; background: var(--card); }
+/* Primary = AliExpress red */
+.btn-primary { background: var(--brand-red); color:#fff; border:none }
+.btn-primary:hover{ background: var(--brand-red-dark); }
 
 .sourcesTitle{ margin-top:10px; font-size:13px; color:var(--muted) }
 .sourcesRow{ margin-top:6px; flex-wrap: wrap; }
 
 /* Sidebar / watchlist */
 .sidebar { min-width:260px; }
-.sidebarTitle{ font-size:12px; font-weight:800; color: var(--muted); text-transform:uppercase }
+.sidebarTitle{ font-size:12px; font-weight:800; color: var(--brand-blue); text-transform:uppercase }
 .watchlist{ display:flex; flex-direction:column; gap:10px }
 .thinBorder{ border:1px solid var(--border); }
-.wlTitle{ font-weight:800 }
+.wlTitle{ font-weight:800; color: var(--text); }
 .wlMeta{ font-size:12px; color: var(--muted); margin:6px 0 }
 
 /* Footer */
@@ -173,7 +182,7 @@ img { display:block; max-width:100%; height:auto; }
 .chat-fab{ position:fixed; right:16px; bottom:16px; width:56px; height:56px; border-radius:16px; border:1px solid var(--border); background: linear-gradient(180deg, var(--brand-blue), var(--brand-red), var(--brand-green)); color:#fff; box-shadow: var(--shadow); font-size:24px; cursor:pointer; z-index:60 }
 .chat-panel{ position:fixed; right:16px; bottom:84px; width:360px; max-width:calc(100vw - 32px); background: var(--card); color:var(--text); border:1px solid var(--border); border-radius:16px; box-shadow: var(--shadow); display:flex; flex-direction:column; overflow:hidden; z-index:60 }
 .chat-head{ display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-bottom:1px solid var(--border); }
-.chat-title{ font-weight:900 }
+.chat-title{ font-weight:900; color: var(--brand-blue); }
 .chat-messages{ max-height:50vh; overflow:auto; display:flex; flex-direction:column; gap:8px; padding:10px 12px }
 .chat-form{ display:flex; gap:8px; padding:10px 12px; border-top:1px solid var(--border) }
 .chat-input{ flex:1 }
@@ -187,10 +196,5 @@ img { display:block; max-width:100%; height:auto; }
 .chat-card{ display:flex; gap:10px; border:1px solid var(--border); border-radius:12px; padding:8px; background: var(--card) }
 .chat-card img{ width:64px; height:64px; border-radius:8px; object-fit:cover }
 .cc-body{ display:flex; flex-direction:column; gap:6px }
-.cc-title{ font-weight:800; font-size:14px }
+.cc-title{ font-weight:800; font-size:14px; color: var(--text); }
 .cc-meta{ font-size:12px; color: var(--muted) }
-
-/* Small helpers */
-.smallNote{ font-size:12px; color:var(--muted) }
-.muted{ color: var(--muted) }
-.row.wrap .inline{ display:flex; align-items:center; gap:6px }
