@@ -13,8 +13,8 @@ const PLACEHOLDER_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
 );
 
 // === VENDORS ===
-// All visible now; only 'live:true' vendors hit the Worker today.
-// You can flip live:true later without touching the UI.
+// All selectable now; only live vendors fetch today.
+// Flip live:true later when you wire them in the Worker.
 const vendorDefs = [
   { name: "AliExpress", slug: "aliexpress", live: true,  color: "red"   },
   { name: "Amazon",     slug: "amazon",     live: true,  color: "blue"  },
@@ -31,7 +31,7 @@ const vendorDefs = [
   { name: "Walmart",    slug: "walmart",    live: false, color: "blue"  }
 ].sort((a,b)=>a.name.localeCompare(b.name));
 
-let enabled = vendorDefs.map(v => v.name);          // all selected by default
+let enabled = vendorDefs.map(v => v.name);                          // all selected by default
 const vendorPages  = Object.fromEntries(vendorDefs.map(v => [v.name, 1])); // for "More results"
 const vendorLimits = { "AliExpress": 40, "eBay": 50, "Amazon": 20 };       // soft paging hints
 
@@ -420,11 +420,11 @@ async function assistantRespond(userText){
   const top = pool.slice(0,3).map(resultCard).join('');
   addChatMsg('bot', `<div class="chat-cards">${top}</div>`);
 
-  // 2) reflect to main page: set query, enable selected vendors, reload
+  // 2) reflect to main page
   const input=$('#search'); if (input){ input.value = intent.query; }
   query = intent.query; localStorage.setItem('ps.lastQuery',query);
   Object.keys(vendorPages).forEach(k=> vendorPages[k]=1);
-  enabled = vendorDefs.map(v=>v.name); // keep all selected
+  enabled = vendorDefs.map(v=>v.name); // all selected
   updateSourcesAllBox();
   vendorDefs.forEach(v=>{
     const inp = document.getElementById('src_'+v.slug);
@@ -447,7 +447,7 @@ function initCashback(){
   $('#cashClose')?.addEventListener('click', ()=>{ localStorage.setItem('ps.cash.hide','1'); if(bar) bar.style.display='none'; if(info) info.classList.remove('open'); });
   $('#cashLearn')?.addEventListener('click', ()=>{ if(info) info.classList.toggle('open'); });
 
-  // lightweight subscribe: try worker /signup, fallback to localStorage
+  // subscribe: try worker /signup, fallback to local storage
   $('#cashForm')?.addEventListener('submit', async (e)=>{
     e.preventDefault();
     const email = ($('#cashEmail')?.value||'').trim().toLowerCase();
@@ -461,6 +461,66 @@ function initCashback(){
       localStorage.setItem('ps.cash.emails', JSON.stringify([...(JSON.parse(localStorage.getItem('ps.cash.emails')||'[]')), email])); if(msg) msg.textContent='Saved. We will notify you.';
     }
   });
+}
+
+// Signup modal
+function initSignupUI(){
+  const modal=$('#signupModal'), openBtn=$('#openSignup'), closeBtn=$('#suClose'),
+        step1=$('#signupStep1'), step2=$('#signupStep2'), msg=$('#signupMsg'),
+        emailEl=$('#suEmail'), codeEl=$('#suCode'), sendBtn=$('#suSend'), verifyBtn=$('#suVerify');
+
+  function trapTab(e){
+    if(e.key!=='Tab') return;
+    const f = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    const first = f[0], last = f[f.length-1];
+    if (e.shiftKey && document.activeElement === first){ last.focus(); e.preventDefault(); }
+    else if (!e.shiftKey && document.activeElement === last){ first.focus(); e.preventDefault(); }
+  }
+  function openModal(){
+    if(!modal) return;
+    if(msg) msg.textContent='';
+    if(step1) step1.style.display='block';
+    if(step2) step2.style.display='none';
+    modal.style.display='flex';
+    emailEl?.focus();
+    document.addEventListener('keydown', trapTab);
+  }
+  function closeModal(){
+    modal.style.display='none';
+    document.removeEventListener('keydown', trapTab);
+  }
+
+  if(!openBtn||!modal) return;
+  openBtn.onclick=openModal;
+  if(closeBtn) closeBtn.onclick=closeModal;
+  modal.addEventListener('click', (e)=>{ if(e.target===modal) closeModal(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && modal.style.display==='flex') closeModal(); });
+
+  if(sendBtn) sendBtn.onclick=async()=>{
+    const email=(emailEl?.value||'').trim().toLowerCase();
+    if(!email||!email.includes('@')){ if(msg) msg.textContent='Enter a valid email.'; return; }
+    try{
+      const out=await postJSON(`${WORKER_BASE}/signup`,{email});
+      if(out.ok){
+        if(msg) msg.textContent=out.emailed?'Code sent to your email.':`Dev code: ${out.devCode}`;
+        if(step1) step1.style.display='none'; if(step2) step2.style.display='block';
+        $('#suCode')?.focus();
+      } else { if(msg) msg.textContent=out.error||'Could not send code.'; }
+    }catch{ if(msg) msg.textContent='Network error.'; }
+  };
+
+  if(verifyBtn) verifyBtn.onclick=async()=>{
+    const email=(emailEl?.value||'').trim().toLowerCase(); const code=(codeEl?.value||'').trim();
+    if(!code){ if(msg) msg.textContent='Enter the 6-digit code.'; return; }
+    try{
+      const out=await postJSON(`${WORKER_BASE}/verify`,{email,code});
+      if(out.ok){
+        localStorage.setItem('ps.email',email);
+        if(msg) msg.textContent='Verified! Watchlist email alerts will be available.';
+        setTimeout(()=>{ modal.style.display='none'; },1200);
+      } else { if(msg) msg.textContent='Invalid code.'; }
+    }catch{ if(msg) msg.textContent='Network error.'; }
+  };
 }
 
 // BOOT
@@ -535,13 +595,15 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     }
   });
 
-  // Cashback
+  // Cashback + Signup modal
   initCashback();
+  initSignupUI();
 
   captureReferral(); await loadRates();
 
   // Start query
-  const startTerm=defaultQuery(); query=startTerm; const se=$('#search'); if(se) se.value=startTerm;
+  const startTerm=(new URLSearchParams(location.search).get('q')) || (localStorage.getItem('ps.lastQuery')) || 'headphones';
+  query=startTerm; const se=$('#search'); if(se) se.value=startTerm;
   Object.keys(vendorPages).forEach(k=> vendorPages[k]=1);
   await loadAll({append:false});
   render();
