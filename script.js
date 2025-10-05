@@ -1,7 +1,6 @@
 // === CONFIG / STATE ===
 const WORKER_BASE = "https://pricescanner.b48rptrywg.workers.dev";
 const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
-
 // Neutral placeholder if an image fails to load
 const PLACEHOLDER_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="450" viewBox="0 0 600 450">
@@ -14,19 +13,21 @@ const PLACEHOLDER_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
    </svg>`
 );
 
-// Live: Amazon, eBay, AliExpress
+// Keep: Amazon, eBay, AliExpress live. Shopee, Etsy, Alibaba = coming soon
 const vendorDefs = [
+  { name: "AliExpress", slug: "aliexpress", supported: true,  color: "red"   },
   { name: "Amazon",     slug: "amazon",     supported: true,  color: "blue"  },
   { name: "eBay",       slug: "ebay",       supported: true,  color: "green" },
-  { name: "AliExpress", slug: "aliexpress", supported: true,  color: "red"   },
-  // not shown in filter (to avoid "coming soon" copy)
-  { name: "Shopee",  slug: "shopee",  supported: false },
-  { name: "Etsy",    slug: "etsy",    supported: false },
-  { name: "Alibaba", slug: "alibaba", supported: false },
+  { name: "Alibaba",    slug: "alibaba",    supported: false, comingSoon: true, color: "blue" },
+  { name: "Etsy",       slug: "etsy",       supported: false, comingSoon: true, color: "green" },
+  { name: "Shopee",     slug: "shopee",     supported: false, comingSoon: true, color: "red" }
 ];
+// Enabled vendors default = all supported
+let enabled = vendorDefs.filter(v => v.supported).map(v => v.name);
 
-let enabled   = vendorDefs.filter(v => v.supported).map(v => v.name);
-let pagesByVendor = Object.fromEntries(enabled.map(n => [n, 1])); // pagination
+// paging per vendor (for "More results")
+const vendorPages = Object.fromEntries(vendorDefs.map(v => [v.name, 1]));
+const vendorLimits = { "AliExpress": 40, "eBay": 50, "Amazon": 10 };
 
 let currency    = "SGD";
 let sortBy      = "priceAsc";
@@ -38,6 +39,8 @@ let watches     = JSON.parse(localStorage.getItem('ps.watches')||"[]");
 let lang        = localStorage.getItem('ps.lang') || 'en';
 let theme       = localStorage.getItem('ps.theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 let lastFocusedEl = null;
+// Budget filter
+let minPriceVal = null, maxPriceVal = null;
 
 const offersByVendor = Object.fromEntries(vendorDefs.map(v => [v.name, []]));
 
@@ -87,17 +90,10 @@ function convertAmount(amount, fromCur){ const from=(fromCur||"USD").toUpperCase
 function priceInSelected(o){ return convertAmount(o.price, o.currency||"USD"); }
 function estimateShipDays(vendor,country){
   const fast = new Set(["eBay","Amazon"]);
-  const intl = new Set(["AliExpress"]);
+  const intl = new Set(["AliExpress","Shopee","Etsy","Alibaba"]);
   if (fast.has(vendor)) return (["SG","US","GB"].includes(country))?3:7;
   if (intl.has(vendor)) return (country==="SG")?7:14;
   return 10;
-}
-
-// Budget helpers
-function getBudget(){
-  const mn = parseFloat($('#minPrice')?.value || '');
-  const mx = parseFloat($('#maxPrice')?.value || '');
-  return { min: Number.isFinite(mn) ? mn : null, max: Number.isFinite(mx) ? mx : null };
 }
 
 // build /out wrapper URL for clicks
@@ -137,25 +133,29 @@ async function enrichAliDetails(items){
   return items.map(o => map.get(String(o.id)) || o);
 }
 
-// loaders (now with paging)
-async function loadVendor(vendor, page = 1, append = false){
-  const def = vendorDefs.find(v => v.name === vendor); if (!def) return 0;
-  if (!def.supported) return 0;
-  const term=(query||"").trim(); if(!enabled.includes(vendor)||!WORKER_BASE||!term) return 0;
+// loaders (paged)
+async function loadVendor(vendor, {append=false, page=1}={}){
+  const def = vendorDefs.find(v => v.name === vendor); if (!def) return;
+  if (!def.supported) return;
+
+  const term=(query||"").trim(); if(!enabled.includes(vendor)||!WORKER_BASE||!term) return;
 
   try{
+    const limit = vendorLimits[vendor] || 40;
     const url = new URL(`${WORKER_BASE}/search/${def.slug}`);
     url.searchParams.set("q", term);
-    url.searchParams.set("page", String(page));  // Worker supports this
+    url.searchParams.set("page", String(page));
+    url.searchParams.set("limit", String(limit));
     if (DEBUG) url.searchParams.set("debug","1");
     const r=await fetch(url.toString(),{mode:"cors",cache:"no-store"});
     const d=await r.json().catch(()=>({results:[]}));
-    if(!r.ok){ console.warn(`${vendor} search error`, r.status, d); return 0; }
+    if(!r.ok){ console.warn(`${vendor} search error`, r.status, d); return; }
     if (d.error) console.warn(`${vendor} search error:`, d.error);
     if (d.note)  console.info(`${vendor} search note:`, d.note);
 
     let arr=(Array.isArray(d.results)?d.results:[]).map(o=>({
       ...o,
+      image: (o.image && /^https?:/i.test(o.image)) ? o.image : PLACEHOLDER_IMG,
       currency:o.currency||"USD",
       shipDays:estimateShipDays(vendor,userCountry),
       vendor
@@ -164,34 +164,41 @@ async function loadVendor(vendor, page = 1, append = false){
     if (vendor === "AliExpress" && arr.length) arr = await enrichAliDetails(arr);
 
     if (append) {
-      const prev = offersByVendor[vendor] || [];
-      // de-dup by id or (title+vendor)
-      const seen = new Set(prev.map(x => x.id || ((x.title||'')+'|'+x.vendor).toLowerCase()));
-      const more = arr.filter(x => { const k=(x.id||((x.title||'')+'|'+x.vendor)).toString().toLowerCase(); if(seen.has(k)) return false; seen.add(k); return true; });
-      offersByVendor[vendor] = prev.concat(more);
+      offersByVendor[vendor] = (offersByVendor[vendor]||[]).concat(arr);
     } else {
       offersByVendor[vendor] = arr;
     }
+
     console.log(`[${vendor}] page ${page} loaded:`, arr.length, 'items for', term);
-    return arr.length;
-  }catch(e){ console.warn(`${vendor} search fetch failed:`,e); return 0; }
+  }catch(e){ console.warn(`${vendor} search fetch failed:`,e); }
+}
+
+async function loadAll({append=false}={}){
+  const live = vendorDefs.filter(v=>v.supported && enabled.includes(v.name)).map(v=>v.name);
+  const tasks = live.map(v => loadVendor(v, {append, page: vendorPages[v]}));
+  await Promise.all(tasks);
 }
 
 function currentResults(){
   let base = [];
-  for (const v of vendorDefs.filter(v=>v.supported).map(v=>v.name)) {
+  for (const v of vendorDefs.map(v=>v.name)) {
     if (enabled.includes(v)) base = base.concat(offersByVendor[v]||[]);
   }
-  // Budget
-  const {min,max} = getBudget();
-  if (min!=null) base = base.filter(o => priceInSelected(o) >= min);
-  if (max!=null) base = base.filter(o => priceInSelected(o) <= max);
-
+  // budget filter
+  if (minPriceVal != null || maxPriceVal != null) {
+    base = base.filter(o=>{
+      const p = priceInSelected(o);
+      if (minPriceVal != null && p < minPriceVal) return false;
+      if (maxPriceVal != null && p > maxPriceVal) return false;
+      return true;
+    });
+  }
   if (maxShipDays) base = base.filter(o => (o.shipDays||estimateShipDays(o.vendor,userCountry)) <= Number(maxShipDays));
   if (sortBy==='priceAsc')  base.sort((a,b)=> priceInSelected(a) - priceInSelected(b));
   if (sortBy==='priceDesc') base.sort((a,b)=> priceInSelected(b) - priceInSelected(a));
   if (sortBy==='rating')    base.sort((a,b)=> (b.rating||4.2) - (a.rating||4.2));
 
+  // de-dup by title|vendor; keep better price
   const m=new Map();
   for(const o of base){ const k=((o.title||'')+'|'+o.vendor).toLowerCase(); const v=m.get(k);
     if(!v || priceInSelected(o) < priceInSelected(v)) m.set(k,o); }
@@ -201,7 +208,7 @@ function currentResults(){
 function renderLabels(){
   const setTxt = (id, key) => { const el=document.getElementById(id); if (el) el.textContent=t(key); };
   setTxt('lblLang','Lang'); setTxt('lblCurrency','Currency'); setTxt('lblSort','Sort');
-  setTxt('lblSources','Sources'); setTxt('lblWatchlist','Watchlist'); setTxt('lblShip','MaxShip');
+  setTxt('lblWatchlist','Watchlist'); setTxt('lblShip','MaxShip');
   document.documentElement.dir = (lang==='ar') ? 'rtl' : 'ltr';
 }
 
@@ -214,53 +221,71 @@ function vendorColorStyle(name){
   return 'var(--accent-1)';
 }
 
-// ---- Sources dropdown ----
-function buildSourceMenu(){
-  const menu = $('#sourceMenu'); if (!menu) return;
-  const supported = vendorDefs.filter(v=>v.supported).map(v=>v.name).sort((a,b)=>a.localeCompare(b));
-  let html = `<label class="check"><input type="checkbox" id="srcAll"> <span>All</span></label><div class="divider"></div>`;
-  for (const name of supported){
-    const id = 'src_' + name.toLowerCase().replace(/\s+/g,'_');
-    html += `<label class="check"><input type="checkbox" id="${id}" data-name="${name}"> <span>${name}</span></label>`;
-  }
-  menu.innerHTML = html;
+// Build / wire the Sources dropdown with checkboxes
+function buildSourcesDropdown(){
+  const listWrap = $('#srcList');
+  if(!listWrap) return;
+  listWrap.innerHTML = '';
 
-  const btn = $('#sourceBtn');
-  function updateBtn(){
-    if (enabled.length===supported.length || enabled.length===0) btn.textContent='All sources';
-    else btn.textContent = `${enabled.length} selected`;
-  }
-  $('#srcAll').checked = enabled.length===supported.length;
-  for (const name of supported){
-    const id = '#src_' + name.toLowerCase().replace(/\s+/g,'_');
-    const cb = $(id);
-    cb.checked = enabled.includes(name);
-    cb.onchange = ()=>{
-      if(cb.checked) enabled = Array.from(new Set([...enabled, name]));
-      else enabled = enabled.filter(n=>n!==name);
-      $('#srcAll').checked = enabled.length===supported.length;
-      updateBtn(); render();
+  const live = vendorDefs.filter(v=>v.supported).map(v=>v.name).sort((a,b)=>a.localeCompare(b));
+  live.forEach(name=>{
+    const id = 'chk_' + name.replace(/\s+/g,'');
+    const row = document.createElement('label');
+    row.className = 'dd-item';
+    row.innerHTML = `<input type="checkbox" id="${id}" ${enabled.includes(name)?'checked':''}> <span>${name}</span>`;
+    listWrap.appendChild(row);
+    row.querySelector('input').addEventListener('change', (e)=>{
+      if (e.target.checked) {
+        if (!enabled.includes(name)) enabled.push(name);
+      } else {
+        enabled = enabled.filter(v=>v!==name);
+      }
+      updateSourcesLabel();
+      render();
+    });
+  });
+
+  // All toggle
+  const chkAll = $('#chkAll');
+  if (chkAll) {
+    chkAll.checked = live.every(n => enabled.includes(n));
+    chkAll.onchange = ()=>{
+      if (chkAll.checked) {
+        enabled = [...live];
+      } else {
+        enabled = [];
+      }
+      // set individual checks
+      live.forEach(name=>{
+        const el = document.getElementById('chk_' + name.replace(/\s+/g,''));
+        if (el) el.checked = chkAll.checked;
+      });
+      updateSourcesLabel();
+      render();
     };
   }
-  $('#srcAll').onchange = (e)=>{
-    enabled = e.target.checked ? supported.slice() : [];
-    for (const name of supported){ const cb = $('#src_' + name.toLowerCase().replace(/\s+/g,'_')); if(cb) cb.checked = e.target.checked; }
-    updateBtn(); render();
-  };
-  updateBtn();
+
+  updateSourcesLabel();
 }
-function toggleSourceMenu(show){
-  const m = $('#sourceMenu'); const b = $('#sourceBtn');
-  if (!m || !b) return;
-  if (show==null) show = m.hidden;
-  m.hidden = !show; b.setAttribute('aria-expanded', String(show));
+function updateSourcesLabel(){
+  const btn = $('#srcDropdownBtn'); if(!btn) return;
+  const live = vendorDefs.filter(v=>v.supported).map(v=>v.name);
+  if (enabled.length === 0) { btn.textContent = 'No source ▾'; return; }
+  if (enabled.length === live.length) { btn.textContent = 'All sources ▾'; return; }
+  btn.textContent = `${enabled.length} selected ▾`;
 }
-document.addEventListener('click', (e)=>{
-  const m=$('#sourceMenu'); const b=$('#sourceBtn');
-  if(!m || !b) return;
-  if (b.contains(e.target)) { toggleSourceMenu(); return; }
-  if (!m.contains(e.target)) { m.hidden = true; b.setAttribute('aria-expanded','false'); }
-});
+function toggleDropdown(open){
+  const menu = $('#srcDropdown'); const btn = $('#srcDropdownBtn');
+  if (!menu || !btn) return;
+  if (open===undefined) open = menu.hasAttribute('hidden');
+  if (open) {
+    menu.removeAttribute('hidden');
+    btn.setAttribute('aria-expanded','true');
+  } else {
+    menu.setAttribute('hidden','');
+    btn.setAttribute('aria-expanded','false');
+  }
+}
 
 // signup modal
 function initSignupUI(){
@@ -269,7 +294,7 @@ function initSignupUI(){
         emailEl=$('#suEmail'), codeEl=$('#suCode'), sendBtn=$('#suSend'), verifyBtn=$('#suVerify');
 
   function trapTab(e){
-    if(e.key!=='Tab') return;
+    if(!modal || e.key!=='Tab') return;
     const f = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
     const first = f[0], last = f[f.length-1];
     if (e.shiftKey && document.activeElement === first){ last.focus(); e.preventDefault(); }
@@ -296,32 +321,6 @@ function initSignupUI(){
   if(closeBtn) closeBtn.onclick=closeModal;
   modal?.addEventListener('click', (e)=>{ if(e.target===modal) closeModal(); });
   document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && modal?.style.display==='flex') closeModal(); });
-
-  if(sendBtn) sendBtn.onclick=async()=>{
-    const email=(emailEl?.value||'').trim().toLowerCase();
-    if(!email||!email.includes('@')){ if(msg) msg.textContent='Enter a valid email.'; return; }
-    try{
-      const out=await postJSON(`${WORKER_BASE}/signup`,{email});
-      if(out.ok){
-        if(msg) msg.textContent=out.emailed?'Code sent to your email.':`Dev code: ${out.devCode}`;
-        if(step1) step1.style.display='none'; if(step2) step2.style.display='block';
-        $('#suCode')?.focus();
-      } else { if(msg) msg.textContent=out.error||'Could not send code.'; }
-    }catch{ if(msg) msg.textContent='Network error.'; }
-  };
-
-  if(verifyBtn) verifyBtn.onclick=async()=>{
-    const email=(emailEl?.value||'').trim().toLowerCase(); const code=(codeEl?.value||'').trim();
-    if(!code){ if(msg) msg.textContent='Enter the 6-digit code.'; return; }
-    try{
-      const out=await postJSON(`${WORKER_BASE}/verify`,{email,code});
-      if(out.ok){
-        localStorage.setItem('ps.email',email);
-        if(msg) msg.textContent='Verified! Enable email alerts in your watchlist.';
-        setTimeout(()=>{ closeModal(); },1200);
-      } else { if(msg) msg.textContent='Invalid code.'; }
-    }catch{ if(msg) msg.textContent='Network error.'; }
-  };
 }
 
 // save watchlist to server
@@ -347,7 +346,7 @@ function render(){
     card.className='card card-hover';
     card.innerHTML = `
       <div class="media">
-        <img loading="lazy" src="${item.image||PLACEHOLDER_IMG}" alt="${item.title} product image"/>
+        <img loading="lazy" src="${item.image || PLACEHOLDER_IMG}" alt="${item.title} product image" onerror="this.src='${PLACEHOLDER_IMG}'"/>
       </div>
       <div class="cardBody">
         <h3 class="title clamp-2">${item.title}</h3>
@@ -366,14 +365,44 @@ function render(){
 
         <div class="actions">
           <a class="btn btn-primary" href="${outUrl(item)}" target="_blank" rel="sponsored nofollow noopener">View Deal</a>
-          <button class="btn watchBtn">Watch</button>
+          <button class="btn watchBtn" type="button">Watch</button>
         </div>
       </div>`;
-    const img = card.querySelector('img');
-    img.onerror = ()=>{ img.src = PLACEHOLDER_IMG; img.onerror=null; };
     card.querySelector('.watchBtn').onclick = ()=> addWatch(item);
     grid.appendChild(card);
   });
+
+  // Show/Hide "More results" button
+  const moreBtn = $('#moreBtn');
+  if (data.length) {
+    moreBtn.style.display = 'inline-flex';
+  } else {
+    moreBtn.style.display = 'none';
+  }
+
+  // Watchlist
+  const list = $('#watchlist'); if (list) {
+    list.innerHTML = watches.length ? '' : '<div class="muted">No watched items yet.</div>';
+    watches.forEach(w=>{
+      const row=document.createElement('div'); row.className='card thinBorder';
+      row.innerHTML = `
+        <div class="pad-sm">
+          <div class="wlTitle">${w.title}</div>
+          <div class="wlMeta">Baseline: ${w.baseline??'—'} • Last: ${w.last??'—'} • ${w.triggered?'Triggered':'Waiting'}</div>
+          <div class="row gap wrap">
+            <input type="number" class="input discount" placeholder="Discount % from baseline" value="${w.discountPct??''}"/>
+            <label class="inline"><input type="checkbox" class="emailOpt"${w.emailOpt?' checked':''}/> email alerts</label>
+            <button class="btn resetBase" type="button">Reset baseline</button>
+            <button class="btn remove" type="button">Remove</button>
+          </div>
+        </div>`;
+      row.querySelector('.discount').oninput = async (e)=>{ w.discountPct=Number(e.target.value); saveWatches(); await pushWatchlistToServer(); };
+      row.querySelector('.emailOpt').onchange = async (e)=>{ w.emailOpt=e.target.checked; saveWatches(); await pushWatchlistToServer(); };
+      row.querySelector('.resetBase').onclick = ()=>{ delete w.baseline; saveWatches(); render(); };
+      row.querySelector('.remove').onclick = ()=>{ watches=watches.filter(x=>x!==w); saveWatches(); render(); };
+      list.appendChild(row);
+    });
+  }
 }
 
 // watchlist helpers
@@ -408,6 +437,7 @@ async function ensureMobileNet(){
   if (mobilenetModel) return mobilenetModel;
   await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js');
   await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.0');
+  // eslint-disable-next-line no-undef
   mobilenetModel = await mobilenet.load();
   return mobilenetModel;
 }
@@ -423,9 +453,9 @@ async function searchByPhoto(file){
     const qText = labels.join(' ');
     const input=$('#search'); if (input){ input.value = qText; }
     query = qText; localStorage.setItem('ps.lastQuery',query);
-    pagesByVendor = Object.fromEntries(vendorDefs.filter(v=>v.supported).map(v=>[v.name,1]));
-    const tasks = vendorDefs.filter(v=>v.supported).map(v => loadVendor(v.name, 1, false));
-    await Promise.all(tasks);
+    // reset pages
+    Object.keys(vendorPages).forEach(k=> vendorPages[k]=1);
+    await loadAll({append:false});
     render();
     URL.revokeObjectURL(img.src);
   } catch(e){
@@ -434,9 +464,9 @@ async function searchByPhoto(file){
   }
 }
 
-// Chat assistant → update main results
-function openChat(){ $('#chatPanel').hidden=false; $('#chatInput')?.focus(); }
-function closeChat(){ $('#chatPanel').hidden=true; }
+// Chat assistant (open/close + intent → results)
+function openChat(){ const p=$('#chatPanel'); if(!p) return; p.classList.add('open'); $('#chatInput')?.focus(); }
+function closeChat(){ const p=$('#chatPanel'); if(!p) return; p.classList.remove('open'); }
 function addChatMsg(role, html){
   const box = $('#chatMessages');
   const wrap = document.createElement('div');
@@ -449,7 +479,7 @@ function parseIntent(text){
   const msg = String(text||'').toLowerCase();
   const vendors = vendorDefs.filter(v=>v.supported).map(v=>v.name.toLowerCase());
   const requested = vendors.filter(v => msg.includes(v));
-  const useVendors = (requested.length ? requested : vendors).map(v=>v.toLowerCase());
+  const useVendors = requested.length ? requested : vendorDefs.filter(v=>v.supported).map(v=>v.name.toLowerCase());
   let min=null, max=null;
   const m1 = msg.match(/\$?\s*(\d+)\s*[-to]\s*\$?\s*(\d+)/); if(m1){ min=+m1[1]; max=+m1[2]; }
   const m2 = msg.match(/(?:under|below|less than)\s*\$?\s*(\d+)/); if(m2){ max=+m2[1]; }
@@ -461,25 +491,63 @@ function parseIntent(text){
   cleaned = cleaned.replace(/\s+/g,' ').trim();
   return { query: cleaned || msg, vendors: useVendors, min, max };
 }
+async function searchWorker(slug, q, page=1, limit=40){
+  const url = new URL(`${WORKER_BASE}/search/${slug}`);
+  url.searchParams.set("q", q);
+  url.searchParams.set("page", String(page));
+  url.searchParams.set("limit", String(limit));
+  if (DEBUG) url.searchParams.set("debug","1");
+  const r = await fetch(url.toString(), { mode:"cors", cache:"no-store" });
+  if (!r.ok) return [];
+  const d = await r.json().catch(()=>({results:[]}));
+  return Array.isArray(d.results) ? d.results : [];
+}
+function withinRange(item, min, max){
+  const p = priceInSelected(item);
+  if (min!=null && p < min) return false;
+  if (max!=null && p > max) return false;
+  return true;
+}
+function resultCard(item){
+  const p = fmt(priceInSelected(item));
+  return `
+    <div class="chat-card">
+      <img src="${item.image || PLACEHOLDER_IMG}" alt="${item.title}" onerror="this.src='${PLACEHOLDER_IMG}'"/>
+      <div class="cc-body">
+        <div class="cc-title">${item.title}</div>
+        <div class="cc-meta"><span class="badge vendor" data-vendor="${item.vendor}">${item.vendor}</span> <b>${p}</b></div>
+        <a class="btn btn-mini" href="${outUrl(item)}" target="_blank" rel="sponsored nofollow noopener">View</a>
+      </div>
+    </div>`;
+}
 async function assistantRespond(userText){
   const intent = parseIntent(userText);
-  addChatMsg('bot', `<div class="bot-text">Looking for <b>${intent.query}</b>${intent.min||intent.max?` with your budget${intent.min?` ≥ ${fmt(intent.min)}`:''}${intent.max?` ≤ ${fmt(intent.max)}`:''}…`:''}</div>`);
+  addChatMsg('bot', `<div class="bot-text">Looking for <b>${intent.query}</b>${intent.min||intent.max?` in your price range${intent.min?` ≥ ${fmt(intent.min)}`:''}${intent.max?` ≤ ${fmt(intent.max)}`:''}.`:'.'}</div>`);
 
-  // apply intent → main UI
+  // Run live searches (page 1) for supported vendors
+  const live = vendorDefs.filter(v=>v.supported && intent.vendors.includes(v.name.toLowerCase()));
+  const queries = live.map(v => searchWorker(v.slug, intent.query, 1, vendorLimits[v.name] || 40));
+  const resultsByVendor = await Promise.all(queries);
+  let pool = [];
+  resultsByVendor.forEach((arr, i) => {
+    const vendorName = live[i].name;
+    (arr||[]).forEach(o => pool.push({ ...o, vendor: vendorName }));
+  });
+  if (intent.min!=null || intent.max!=null){ pool = pool.filter(o => withinRange(o, intent.min, intent.max)); }
+  pool.sort((a,b) => priceInSelected(a) - priceInSelected(b) || (b.rating||0)-(a.rating||0));
+  if (!pool.length){ addChatMsg('bot', `<div class="bot-text">No great matches yet. Try adding brand/model or widening price range.</div>`); return; }
+
+  // 1) show top in chat
+  const top = pool.slice(0,3).map(resultCard).join('');
+  addChatMsg('bot', `<div class="chat-cards">${top}</div>`);
+
+  // 2) also reflect to main page: set query and reload
+  const input=$('#search'); if (input){ input.value = intent.query; }
+  query = intent.query; localStorage.setItem('ps.lastQuery',query);
+  Object.keys(vendorPages).forEach(k=> vendorPages[k]=1);
   enabled = vendorDefs.filter(v=>v.supported && intent.vendors.includes(v.name.toLowerCase())).map(v=>v.name);
-  if (!enabled.length) enabled = vendorDefs.filter(v=>v.supported).map(v=>v.name);
-  $('#search').value = intent.query;
-  query = intent.query; localStorage.setItem('ps.lastQuery', query);
-
-  if (intent.min!=null) $('#minPrice').value = intent.min;
-  if (intent.max!=null) $('#maxPrice').value = intent.max;
-
-  // reset paging and load
-  pagesByVendor = Object.fromEntries(enabled.map(v=>[v,1]));
-  const tasks = enabled.map(v => loadVendor(v, 1, false));
-  await Promise.all(tasks);
+  await loadAll({append:false});
   render();
-  addChatMsg('bot', `<div class="bot-text">Updated results are shown below.</div>`);
 }
 
 // personalization
@@ -489,23 +557,39 @@ function defaultQuery(){ const urlQ = new URLSearchParams(location.search).get('
 // BOOT
 let debounce;
 window.addEventListener('DOMContentLoaded', async ()=>{
+  // Theme
   $('#themeToggle')?.addEventListener('click', ()=> applyTheme( (localStorage.getItem('ps.theme')==='dark') ? 'light' : 'dark' ));
 
-  buildSourceMenu();
-  $('#sourceBtn')?.addEventListener('click', ()=> toggleSourceMenu());
-
+  // Language/Currency/Sort/Ship
   const selLang=$('#lang'); if(selLang){ selLang.value=lang; selLang.onchange=()=>{ lang=selLang.value; localStorage.setItem('ps.lang',lang); render(); } }
   $('#currency').onchange=(e)=>{ currency=e.target.value; render(); }
   $('#sort').onchange=(e)=>{ sortBy=e.target.value; render(); }
   $('#shipMax').onchange=(e)=>{ maxShipDays=e.target.value; render(); }
-  $('#minPrice').oninput = ()=> render();
-  $('#maxPrice').oninput = ()=> render();
 
+  // Sources dropdown
+  buildSourcesDropdown();
+  $('#srcDropdownBtn')?.addEventListener('click', ()=> toggleDropdown());
+  document.addEventListener('click', (e)=>{
+    const dd = $('#srcFilter');
+    if (!dd) return;
+    const menu = $('#srcDropdown');
+    if (!menu) return;
+    if (!dd.contains(e.target)) toggleDropdown(false);
+  });
+
+  // Budget filter
+  $('#applyBudget')?.addEventListener('click', ()=>{
+    const minV = $('#minPrice').value.trim(); const maxV = $('#maxPrice').value.trim();
+    minPriceVal = minV==='' ? null : Math.max(0, Number(minV));
+    maxPriceVal = maxV==='' ? null : Math.max(0, Number(maxV));
+    render();
+  });
+
+  // Search input
   $('#search').oninput=(e)=>{ query=e.target.value; localStorage.setItem('ps.lastQuery',query);
     clearTimeout(debounce); debounce=setTimeout(async()=>{
-      pagesByVendor = Object.fromEntries(enabled.map(v=>[v,1]));
-      const tasks = enabled.map(v => loadVendor(v, 1, false));
-      await Promise.all(tasks);
+      Object.keys(vendorPages).forEach(k=> vendorPages[k]=1);
+      await loadAll({append:false});
       render();
     },250); };
   $('#searchBtn').onclick=()=>{ const input=$('#search'); if(input){ input.dispatchEvent(new Event('input',{bubbles:true})); } }
@@ -514,9 +598,11 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   $('#photoBtn').onclick = ()=> $('#photoInput').click();
   $('#photoInput').onchange = ()=> { const f=$('#photoInput').files?.[0]; if (f) searchByPhoto(f); };
 
-  // Chat assistant
-  $('#chatFab').onclick = openChat;
-  $('#chatClose').onclick = closeChat;
+  // Chat assistant open/close (robust)
+  $('#chatFab').onclick = ()=>{ openChat(); };
+  $('#chatClose').addEventListener('click', (e)=>{ e.preventDefault(); closeChat(); });
+  $('#chatBg').addEventListener('click', ()=> closeChat());
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ closeChat(); }});
   $('#chatForm').onsubmit = async (e)=>{
     e.preventDefault();
     const txt = $('#chatInput').value.trim();
@@ -527,22 +613,27 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   };
 
   // More results
-  $('#moreBtn').onclick = async ()=>{
-    const tasks = enabled.map(v => {
-      pagesByVendor[v] = (pagesByVendor[v]||1) + 1;
-      return loadVendor(v, pagesByVendor[v], true);
-    });
-    await Promise.all(tasks);
+  $('#moreBtn').addEventListener('click', async ()=>{
+    // increment page for each enabled live vendor
+    let before = currentResults().length;
+    vendorDefs.filter(v=>v.supported && enabled.includes(v.name)).forEach(v => vendorPages[v.name] = (vendorPages[v.name]||1) + 1);
+    await loadAll({append:true});
+    const after = currentResults().length;
     render();
-  };
+    if (after === before) {
+      $('#moreBtn').style.display = 'none';
+      toast('No more results.');
+    }
+  });
 
-  $('#refreshBtn').onclick=refreshWatches;
+  $('#refreshBtn')?.addEventListener('click', refreshWatches);
 
+  // boot
   initSignupUI(); captureReferral(); await loadRates();
 
   const startTerm=defaultQuery(); query=startTerm; const se=$('#search'); if(se) se.value=startTerm;
 
-  const tasks = enabled.map(v => loadVendor(v, 1, false));
-  await Promise.all(tasks);
+  Object.keys(vendorPages).forEach(k=> vendorPages[k]=1);
+  await loadAll({append:false});
   render();
 });
