@@ -12,17 +12,28 @@ const PLACEHOLDER_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
    </svg>`
 );
 
-// Live vendors (alphabetical for UI)
+// === VENDORS ===
+// All visible now; only 'live:true' vendors hit the Worker today.
+// You can flip live:true later without touching the UI.
 const vendorDefs = [
-  { name: "AliExpress", slug: "aliexpress", supported: true,  color: "red"   },
-  { name: "Amazon",     slug: "amazon",     supported: true,  color: "blue"  },
-  { name: "eBay",       slug: "ebay",       supported: true,  color: "green" }
+  { name: "AliExpress", slug: "aliexpress", live: true,  color: "red"   },
+  { name: "Amazon",     slug: "amazon",     live: true,  color: "blue"  },
+  { name: "eBay",       slug: "ebay",       live: true,  color: "green" },
+
+  { name: "Alibaba",    slug: "alibaba",    live: false, color: "blue"  },
+  { name: "Best Buy",   slug: "bestbuy",    live: false, color: "blue"  },
+  { name: "Etsy",       slug: "etsy",       live: false, color: "green" },
+  { name: "Lazada",     slug: "lazada",     live: false, color: "red"   },
+  { name: "Newegg",     slug: "newegg",     live: false, color: "blue"  },
+  { name: "Rakuten",    slug: "rakuten",    live: false, color: "blue"  },
+  { name: "Shopee",     slug: "shopee",     live: false, color: "red"   },
+  { name: "Target",     slug: "target",     live: false, color: "blue"  },
+  { name: "Walmart",    slug: "walmart",    live: false, color: "blue"  }
 ].sort((a,b)=>a.name.localeCompare(b.name));
 
-// enabled set starts with all
-let enabled = vendorDefs.filter(v => v.supported).map(v => v.name);
+let enabled = vendorDefs.map(v => v.name);          // all selected by default
 const vendorPages  = Object.fromEntries(vendorDefs.map(v => [v.name, 1])); // for "More results"
-const vendorLimits = { "AliExpress": 40, "eBay": 50, "Amazon": 10 };       // soft paging hints
+const vendorLimits = { "AliExpress": 40, "eBay": 50, "Amazon": 20 };       // soft paging hints
 
 let currency    = "SGD";
 let sortBy      = "priceAsc";
@@ -126,6 +137,9 @@ async function loadVendor(vendor, {append=false, page=1}={}){
   const def = vendorDefs.find(v => v.name === vendor); if (!def) return;
   const term=(query||"").trim(); if(!enabled.includes(vendor)||!WORKER_BASE||!term) return;
 
+  // Only hit Worker for live vendors; others are UI-ready but not fetched yet.
+  if (!def.live) return;
+
   try{
     const limit = vendorLimits[vendor] || 40;
     const url = new URL(`${WORKER_BASE}/search/${def.slug}`);
@@ -155,7 +169,7 @@ async function loadVendor(vendor, {append=false, page=1}={}){
 }
 
 async function loadAll({append=false}={}){
-  const live = vendorDefs.filter(v=>v.supported && enabled.includes(v.name)).map(v=>v.name);
+  const live = vendorDefs.filter(v=>v.live && enabled.includes(v.name)).map(v=>v.name);
   const tasks = live.map(v => loadVendor(v, {append, page: vendorPages[v]}));
   await Promise.all(tasks);
 }
@@ -198,11 +212,11 @@ function buildSourcesPanel(){
   const list = $('#sourcesPanelList'); if(!list) return;
   list.innerHTML = '';
 
-  // Build chips for each live vendor (alphabetical)
-  vendorDefs.filter(v=>v.supported).forEach(v=>{
+  vendorDefs.forEach(v=>{
     const id='src_'+v.slug;
     const label=document.createElement('label');
     label.className='src-chip';
+    label.title = `Include ${v.name}`;
     label.innerHTML=`<input type="checkbox" id="${id}" ${enabled.includes(v.name)?'checked':''}/> <span>${v.name}</span>`;
     list.appendChild(label);
 
@@ -215,7 +229,10 @@ function buildSourcesPanel(){
       else { enabled = enabled.filter(n=>n!==v.name); }
       updateSourcesAllBox();
       sync();
-      if (query.trim()) { vendorPages[v.name]=1; await loadVendor(v.name,{append:false,page:1}); }
+      if (query.trim()) {
+        vendorPages[v.name]=1;
+        await loadVendor(v.name,{append:false,page:1});
+      }
       render();
     });
   });
@@ -224,35 +241,21 @@ function buildSourcesPanel(){
 }
 function updateSourcesAllBox(){
   const all = $('#srcAll'); if(!all) return;
-  const live = vendorDefs.filter(v=>v.supported).map(v=>v.name);
-  all.checked = live.length>0 && live.every(n=>enabled.includes(n));
+  const allNames = vendorDefs.map(v=>v.name);
+  all.checked = allNames.length>0 && allNames.every(n=>enabled.includes(n));
   const chip = all.closest('label'); if(chip) chip.classList.toggle('on', all.checked);
 }
 function setAllSources(on){
-  enabled = on ? vendorDefs.filter(v=>v.supported).map(v=>v.name) : [];
-  // sync each chip
-  vendorDefs.filter(v=>v.supported).forEach(v=>{
+  enabled = on ? vendorDefs.map(v=>v.name) : [];
+  vendorDefs.forEach(v=>{
     const inp = document.getElementById('src_'+v.slug);
     if (inp) { inp.checked = on; const chip = inp.closest('label'); chip?.classList.toggle('on', on); }
   });
   updateSourcesAllBox();
 }
 
-/* ===== Signup modal (placeholder hooks) ===== */
-function initSignupUI(){
-  const modal=$('#signupModal'), openBtn=$('#openSignup'), closeBtn=$('#suClose');
-  if(!openBtn) return;
-  openBtn.onclick=()=>{ if(!modal) return; show(modal,true); };
-  if(closeBtn) closeBtn.onclick=()=>{ if(!modal) return; show(modal,false); };
-}
-
-// save watchlist to server (kept for future)
-async function pushWatchlistToServer(){
-  const email=localStorage.getItem('ps.email')||''; if(!email) return;
-  const payload={ email, watches: [] };
-  if(!payload.watches.length) return;
-  try{ await fetch(`${WORKER_BASE}/watchlist`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)}); }catch{}
-}
+// Toast
+function toast(m){ const t=$('#toast'); if(!t) return; t.textContent=m; t.style.display='block'; setTimeout(()=>t.style.display='none',2600); }
 
 // ----- RENDER -----
 function render(){
@@ -295,15 +298,15 @@ function render(){
     grid.appendChild(card);
   });
 
-  // --- More results button visibility ---
+  // More results button
   const moreBtn = $('#moreBtn');
   if (query.trim().length > 0) {
-    moreBtn.style.display = 'inline-flex';   // visible after any search
-    moreBtn.disabled = data.length === 0;    // disabled if nothing yet
+    moreBtn.style.display = 'inline-flex';
+    moreBtn.disabled = data.length === 0;
     moreBtn.style.opacity = moreBtn.disabled ? '.6' : '1';
     moreBtn.style.pointerEvents = moreBtn.disabled ? 'none' : 'auto';
   } else {
-    moreBtn.style.display = 'none';          // hidden before first query
+    moreBtn.style.display = 'none';
   }
 }
 
@@ -330,7 +333,6 @@ async function searchByPhoto(file){
     const qText = labels.join(' ');
     const input=$('#search'); if (input){ input.value = qText; }
     query = qText; localStorage.setItem('ps.lastQuery',query);
-    // reset pages
     Object.keys(vendorPages).forEach(k=> vendorPages[k]=1);
     await loadAll({append:false});
     render();
@@ -354,9 +356,9 @@ function addChatMsg(role, html){
 }
 function parseIntent(text){
   const msg = String(text||'').toLowerCase();
-  const vendors = vendorDefs.filter(v=>v.supported).map(v=>v.name.toLowerCase());
+  const vendors = vendorDefs.map(v=>v.name.toLowerCase()); // all selectable
   const requested = vendors.filter(v => msg.includes(v));
-  const useVendors = requested.length ? requested : vendorDefs.filter(v=>v.supported).map(v=>v.name.toLowerCase());
+  const useVendors = requested.length ? requested : vendorDefs.map(v=>v.name.toLowerCase());
   let min=null, max=null;
   const m1 = msg.match(/\$?\s*(\d+)\s*[-to]\s*\$?\s*(\d+)/); if(m1){ min=+m1[1]; max=+m1[2]; }
   const m2 = msg.match(/(?:under|below|less than)\s*\$?\s*(\d+)/); if(m2){ max=+m2[1]; }
@@ -393,7 +395,7 @@ function resultCard(item){
       <div class="cc-body">
         <div class="cc-title">${item.title}</div>
         <div class="cc-meta"><span class="badge vendor" data-vendor="${item.vendor}">${item.vendor}</span> <b>${p}</b></div>
-        <a class="btn btn-mini" href="${outUrl(item)}" target="_blank" rel="sponsored nofollow noopener">View</a>
+        <a class="btn btn-mini btn-primary" href="${outUrl(item)}" target="_blank" rel="sponsored nofollow noopener">View</a>
       </div>
     </div>`;
 }
@@ -401,8 +403,8 @@ async function assistantRespond(userText){
   const intent = parseIntent(userText);
   addChatMsg('bot', `<div class="bot-text">Looking for <b>${intent.query}</b>${intent.min||intent.max?` in your price range${intent.min?` ≥ ${fmt(intent.min)}`:''}${intent.max?` ≤ ${fmt(intent.max)}`:''}.`:'.'}</div>`);
 
-  // Run live searches (page 1) for supported vendors
-  const live = vendorDefs.filter(v=>v.supported && intent.vendors.includes(v.name.toLowerCase()));
+  // Run searches for live vendors only (others will work once wired)
+  const live = vendorDefs.filter(v=>v.live && intent.vendors.includes(v.name.toLowerCase()));
   const queries = live.map(v => searchWorker(v.slug, intent.query, 1, vendorLimits[v.name] || 40));
   const resultsByVendor = await Promise.all(queries);
   let pool = [];
@@ -418,18 +420,16 @@ async function assistantRespond(userText){
   const top = pool.slice(0,3).map(resultCard).join('');
   addChatMsg('bot', `<div class="chat-cards">${top}</div>`);
 
-  // 2) also reflect to main page: set query and reload
+  // 2) reflect to main page: set query, enable selected vendors, reload
   const input=$('#search'); if (input){ input.value = intent.query; }
   query = intent.query; localStorage.setItem('ps.lastQuery',query);
   Object.keys(vendorPages).forEach(k=> vendorPages[k]=1);
-  enabled = vendorDefs.filter(v=>v.supported && intent.vendors.includes(v.name.toLowerCase())).map(v=>v.name);
-  // sync chips UI to the enabled set
-  setAllSources(false); // clears first
-  enabled.forEach(name=>{
-    const v = vendorDefs.find(v=>v.name===name);
-    if(v){ const inp = document.getElementById('src_'+v.slug); if(inp){ inp.checked=true; inp.closest('label')?.classList.add('on'); } }
-  });
+  enabled = vendorDefs.map(v=>v.name); // keep all selected
   updateSourcesAllBox();
+  vendorDefs.forEach(v=>{
+    const inp = document.getElementById('src_'+v.slug);
+    if(inp){ inp.checked=true; inp.closest('label')?.classList.add('on'); }
+  });
 
   await loadAll({append:false});
   render();
@@ -438,6 +438,30 @@ async function assistantRespond(userText){
 // personalization
 function captureReferral(){ const p=new URLSearchParams(location.search); const r=p.get('ref'); if(r) localStorage.setItem('ps.ref',r); }
 function defaultQuery(){ const urlQ = new URLSearchParams(location.search).get('q') || ''; if (urlQ) return urlQ; const last=localStorage.getItem('ps.lastQuery'); return last||trending[Math.floor(Math.random()*trending.length)]; }
+
+// Cashback UI
+function initCashback(){
+  const bar = $('#cashBar'); const info=$('#cashInfo');
+  const hide = localStorage.getItem('ps.cash.hide')==='1';
+  if(hide && bar) bar.style.display='none';
+  $('#cashClose')?.addEventListener('click', ()=>{ localStorage.setItem('ps.cash.hide','1'); if(bar) bar.style.display='none'; if(info) info.classList.remove('open'); });
+  $('#cashLearn')?.addEventListener('click', ()=>{ if(info) info.classList.toggle('open'); });
+
+  // lightweight subscribe: try worker /signup, fallback to localStorage
+  $('#cashForm')?.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const email = ($('#cashEmail')?.value||'').trim().toLowerCase();
+    const msg = $('#cashMsg');
+    if(!email || !email.includes('@')){ if(msg) msg.textContent='Please enter a valid email.'; return; }
+    try{
+      const r = await postJSON(`${WORKER_BASE}/signup`, { email });
+      if (r.ok){ if(msg) msg.textContent = r.emailed ? 'Check your inbox to verify.' : 'Registered (dev mode).'; }
+      else { localStorage.setItem('ps.cash.emails', JSON.stringify([...(JSON.parse(localStorage.getItem('ps.cash.emails')||'[]')), email])); if(msg) msg.textContent='Saved. We will notify you.'; }
+    }catch{
+      localStorage.setItem('ps.cash.emails', JSON.stringify([...(JSON.parse(localStorage.getItem('ps.cash.emails')||'[]')), email])); if(msg) msg.textContent='Saved. We will notify you.';
+    }
+  });
+}
 
 // BOOT
 let debounce;
@@ -451,13 +475,12 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   $('#sort').onchange=(e)=>{ sortBy=e.target.value; render(); }
   $('#shipMax').onchange=(e)=>{ maxShipDays=e.target.value; render(); }
 
-  // Build stores panel
+  // Stores panel
   buildSourcesPanel();
   $('#srcAll')?.addEventListener('change', async (e)=>{
     const on = e.target.checked;
     setAllSources(on);
     if (query.trim()) {
-      // reset pages and reload all sources
       Object.keys(vendorPages).forEach(k=> vendorPages[k]=1);
       await loadAll({append:false});
     }
@@ -497,11 +520,11 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     addChatMsg('user', `<div class="me-text">${txt}</div>`);
     $('#chatInput').value='';
     await assistantRespond(txt);
-  };
+  });
 
   // More results (paged fetch for each enabled vendor)
   $('#moreBtn').addEventListener('click', async ()=>{
-    vendorDefs.filter(v=>v.supported && enabled.includes(v.name)).forEach(v => vendorPages[v.name] = (vendorPages[v.name]||1) + 1);
+    vendorDefs.filter(v=>v.live && enabled.includes(v.name)).forEach(v => vendorPages[v.name] = (vendorPages[v.name]||1) + 1);
     const before = currentResults().length;
     await loadAll({append:true});
     const after = currentResults().length;
@@ -512,9 +535,12 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     }
   });
 
+  // Cashback
+  initCashback();
+
   captureReferral(); await loadRates();
 
-  // Start query (tight boot)
+  // Start query
   const startTerm=defaultQuery(); query=startTerm; const se=$('#search'); if(se) se.value=startTerm;
   Object.keys(vendorPages).forEach(k=> vendorPages[k]=1);
   await loadAll({append:false});
