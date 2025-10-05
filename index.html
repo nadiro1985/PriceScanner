@@ -6,9 +6,10 @@
   <title>PriceScanner — Compare Amazon, eBay & AliExpress</title>
   <meta name="description" content="Search once across trusted stores. Clear prices, buyer protection and secure checkout.">
   <meta name="theme-color" content="#146EB4">
-  <link rel="icon" href="logo.svg?v=10">
-  <link rel="mask-icon" href="logo.svg?v=10" color="#146EB4">
-  <link rel="stylesheet" href="styles.css?v=51">
+  <!-- bump these numbers any time to hard-refresh -->
+  <link rel="icon" href="logo.svg?v=11">
+  <link rel="mask-icon" href="logo.svg?v=11" color="#146EB4">
+  <link rel="stylesheet" href="styles.css?v=60">
 
   <link rel="canonical" href="https://nadiro1985.github.io/PriceScanner/">
   <meta property="og:title" content="PriceScanner — Compare Amazon, eBay & AliExpress">
@@ -70,7 +71,7 @@
     .input.small{padding:.5rem .6rem;font-size:14px;width:110px}
     .row.center{display:flex;justify-content:center;margin-top:12px}
 
-    /* Stores panel */
+    /* Stores panel (blue + red chips) */
     .sourcesPanel{background:#146EB4;color:#fff;border-radius:12px;padding:10px;margin:10px 0 0 0}
     .sourcesHeading{font-weight:800;margin-bottom:6px}
     .src-list{display:flex;flex-wrap:wrap;gap:8px}
@@ -97,6 +98,7 @@
     .chat-panel.open{display:flex}
     .chat-bg{position:absolute;inset:0;background:rgba(0,0,0,.35)}
     .chat-box{position:relative;z-index:1;margin:auto;background:var(--card,#fff);border-radius:12px;max-width:420px;width:92%;display:flex;flex-direction:column;max-height:80vh}
+    .footerRight{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   </style>
 </head>
 <body>
@@ -134,7 +136,7 @@
       <div class="heroContent">
         <div class="topBar">
           <div class="logoWrap">
-            <img id="brandLogo" class="brandLogo" src="logo.svg?v=10" alt="PriceScanner logo" width="60" height="60">
+            <img id="brandLogo" class="brandLogo" src="logo.svg?v=11" alt="PriceScanner logo" width="60" height="60">
             <div id="brandName" class="logoText">PriceScanner</div>
           </div>
 
@@ -217,13 +219,15 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <footer class="footer">
-    <div class="container footerInner">
+    <div class="container footerInner" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
       <div>© <span id="year"></span> <span id="brandFooter">PriceScanner</span></div>
-      <div class="footerLinks">
+      <div class="footerRight">
         <a href="admin.html">Admin</a>
         <a href="privacy.html" rel="nofollow">Privacy</a>
         <a href="terms.html" rel="nofollow">Terms</a>
         <a href="affiliates.html" rel="nofollow">Affiliate Disclosure</a>
+        <!-- NEW: Force update button -->
+        <button id="forceUpdate" class="btn" type="button" title="Clear cache and reload new files">Force update</button>
       </div>
     </div>
   </footer>
@@ -270,16 +274,35 @@
   </div>
 
   <script>
+    // Footer year and brand
     document.getElementById('year').textContent = new Date().getFullYear();
     (function(){ const cfg = JSON.parse(localStorage.getItem('site.config')||"{}");
       if(cfg && cfg.name){ document.getElementById('brandFooter').textContent = cfg.name; }})();
+    // Search button triggers input event
     document.getElementById('searchBtn')?.addEventListener('click', function(e){
       e.preventDefault(); const input = document.getElementById('search');
       if (input) input.dispatchEvent(new Event('input', { bubbles: true }));
     });
+
+    // NEW: Force update handler (clears caches + SW and reloads with fresh ?v=)
+    async function forceUpdate(){
+      try{
+        if('caches' in window){
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k=>caches.delete(k)));
+        }
+        if('serviceWorker' in navigator){
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map(r=>r.unregister()));
+        }
+      }catch(e){}
+      const u = new URL(location.href); u.searchParams.set('v', Date.now().toString());
+      location.replace(u.toString());
+    }
+    document.getElementById('forceUpdate')?.addEventListener('click', forceUpdate);
   </script>
 
   <!-- IMPORTANT: keep script.js a JS file (not HTML). Cache-busted version below. -->
-  <script defer src="script.js?v=51"></script>
+  <script defer src="script.js?v=60"></script>
 </body>
 </html>
