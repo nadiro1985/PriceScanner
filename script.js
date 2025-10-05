@@ -14,7 +14,6 @@ const PLACEHOLDER_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
 
 // === VENDORS ===
 // All selectable now; only live vendors fetch today.
-// Flip live:true later when you wire them in the Worker.
 const vendorDefs = [
   { name: "AliExpress", slug: "aliexpress", live: true,  color: "red"   },
   { name: "Amazon",     slug: "amazon",     live: true,  color: "blue"  },
@@ -31,10 +30,11 @@ const vendorDefs = [
   { name: "Walmart",    slug: "walmart",    live: false, color: "blue"  }
 ].sort((a,b)=>a.name.localeCompare(b.name));
 
-let enabled = vendorDefs.map(v => v.name);                          // all selected by default
+let enabled = vendorDefs.map(v => v.name);                              // all selected by default
 const vendorPages  = Object.fromEntries(vendorDefs.map(v => [v.name, 1])); // for "More results"
-const vendorLimits = { "AliExpress": 40, "eBay": 50, "Amazon": 20 };       // soft paging hints
+const vendorLimits = { "AliExpress": 40, "eBay": 50, "Amazon": 20 };       // UI page sizes (Worker may clamp)
 
+// UI state
 let currency    = "SGD";
 let sortBy      = "priceAsc";
 let query       = "";
@@ -137,7 +137,7 @@ async function loadVendor(vendor, {append=false, page=1}={}){
   const def = vendorDefs.find(v => v.name === vendor); if (!def) return;
   const term=(query||"").trim(); if(!enabled.includes(vendor)||!WORKER_BASE||!term) return;
 
-  // Only hit Worker for live vendors; others are UI-ready but not fetched yet.
+  // Only hit Worker for live vendors; others are UI-only for now.
   if (!def.live) return;
 
   try{
@@ -148,8 +148,9 @@ async function loadVendor(vendor, {append=false, page=1}={}){
     url.searchParams.set("limit", String(limit));
     if (DEBUG) url.searchParams.set("debug","1");
     const r=await fetch(url.toString(),{mode:"cors",cache:"no-store"});
-    const d=await r.json().catch(()=>({results:[]}));
-    if(!r.ok){ console.warn(`${vendor} search error`, r.status, d); return; }
+    const d=await r.json().catch(()=>({results:[], note:"JSON parse error"}));
+    if(!r.ok){ console.warn(`${vendor} search HTTP ${r.status}`, d); return; }
+    if (d.note) console.info(`${vendor} note: ${d.note}`);
 
     let arr=(Array.isArray(d.results)?d.results:[]).map(o=>({
       ...o,
@@ -300,13 +301,15 @@ function render(){
 
   // More results button
   const moreBtn = $('#moreBtn');
-  if (query.trim().length > 0) {
-    moreBtn.style.display = 'inline-flex';
-    moreBtn.disabled = data.length === 0;
-    moreBtn.style.opacity = moreBtn.disabled ? '.6' : '1';
-    moreBtn.style.pointerEvents = moreBtn.disabled ? 'none' : 'auto';
-  } else {
-    moreBtn.style.display = 'none';
+  if (moreBtn) {
+    if (query.trim().length > 0) {
+      moreBtn.style.display = 'inline-flex';
+      moreBtn.disabled = data.length === 0;
+      moreBtn.style.opacity = moreBtn.disabled ? '.6' : '1';
+      moreBtn.style.pointerEvents = moreBtn.disabled ? 'none' : 'auto';
+    } else {
+      moreBtn.style.display = 'none';
+    }
   }
 }
 
@@ -348,6 +351,7 @@ function openChat(){ const p=$('#chatPanel'); if(!p) return; p.classList.add('op
 function closeChat(){ const p=$('#chatPanel'); if(!p) return; p.classList.remove('open'); }
 function addChatMsg(role, html){
   const box = $('#chatMessages');
+  if (!box) return;
   const wrap = document.createElement('div');
   wrap.className = 'chat-msg ' + (role==='user'?'me':'bot');
   wrap.innerHTML = html;
@@ -435,32 +439,11 @@ async function assistantRespond(userText){
   render();
 }
 
-// personalization
-function captureReferral(){ const p=new URLSearchParams(location.search); const r=p.get('ref'); if(r) localStorage.setItem('ps.ref',r); }
-function defaultQuery(){ const urlQ = new URLSearchParams(location.search).get('q') || ''; if (urlQ) return urlQ; const last=localStorage.getItem('ps.lastQuery'); return last||trending[Math.floor(Math.random()*trending.length)]; }
-
-// Cashback UI
-function initCashback(){
+// Cashback (advert-only: toggle learn/close; no network; no local email storage)
+function initCashbackLite(){
   const bar = $('#cashBar'); const info=$('#cashInfo');
-  const hide = localStorage.getItem('ps.cash.hide')==='1';
-  if(hide && bar) bar.style.display='none';
-  $('#cashClose')?.addEventListener('click', ()=>{ localStorage.setItem('ps.cash.hide','1'); if(bar) bar.style.display='none'; if(info) info.classList.remove('open'); });
-  $('#cashLearn')?.addEventListener('click', ()=>{ if(info) info.classList.toggle('open'); });
-
-  // subscribe: try worker /signup, fallback to local storage
-  $('#cashForm')?.addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    const email = ($('#cashEmail')?.value||'').trim().toLowerCase();
-    const msg = $('#cashMsg');
-    if(!email || !email.includes('@')){ if(msg) msg.textContent='Please enter a valid email.'; return; }
-    try{
-      const r = await postJSON(`${WORKER_BASE}/signup`, { email });
-      if (r.ok){ if(msg) msg.textContent = r.emailed ? 'Check your inbox to verify.' : 'Registered (dev mode).'; }
-      else { localStorage.setItem('ps.cash.emails', JSON.stringify([...(JSON.parse(localStorage.getItem('ps.cash.emails')||'[]')), email])); if(msg) msg.textContent='Saved. We will notify you.'; }
-    }catch{
-      localStorage.setItem('ps.cash.emails', JSON.stringify([...(JSON.parse(localStorage.getItem('ps.cash.emails')||'[]')), email])); if(msg) msg.textContent='Saved. We will notify you.';
-    }
-  });
+  $('#cashLearn')?.addEventListener('click', ()=>{ info?.classList.toggle('open'); });
+  $('#cashClose')?.addEventListener('click', ()=>{ if(bar) bar.style.display='none'; info?.classList.remove('open'); });
 }
 
 // Signup modal
@@ -492,11 +475,11 @@ function initSignupUI(){
 
   if(!openBtn||!modal) return;
   openBtn.onclick=openModal;
-  if(closeBtn) closeBtn.onclick=closeModal;
+  closeBtn?.addEventListener('click', closeModal);
   modal.addEventListener('click', (e)=>{ if(e.target===modal) closeModal(); });
   document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && modal.style.display==='flex') closeModal(); });
 
-  if(sendBtn) sendBtn.onclick=async()=>{
+  sendBtn?.addEventListener('click', async ()=>{
     const email=(emailEl?.value||'').trim().toLowerCase();
     if(!email||!email.includes('@')){ if(msg) msg.textContent='Enter a valid email.'; return; }
     try{
@@ -507,9 +490,9 @@ function initSignupUI(){
         $('#suCode')?.focus();
       } else { if(msg) msg.textContent=out.error||'Could not send code.'; }
     }catch{ if(msg) msg.textContent='Network error.'; }
-  };
+  });
 
-  if(verifyBtn) verifyBtn.onclick=async()=>{
+  verifyBtn?.addEventListener('click', async ()=>{
     const email=(emailEl?.value||'').trim().toLowerCase(); const code=(codeEl?.value||'').trim();
     if(!code){ if(msg) msg.textContent='Enter the 6-digit code.'; return; }
     try{
@@ -520,7 +503,7 @@ function initSignupUI(){
         setTimeout(()=>{ modal.style.display='none'; },1200);
       } else { if(msg) msg.textContent='Invalid code.'; }
     }catch{ if(msg) msg.textContent='Network error.'; }
-  };
+  });
 }
 
 // BOOT
@@ -531,9 +514,9 @@ window.addEventListener('DOMContentLoaded', async ()=>{
 
   // Language/Currency/Sort/Ship
   const selLang=$('#lang'); if(selLang){ selLang.value=lang; selLang.onchange=()=>{ lang=selLang.value; localStorage.setItem('ps.lang',lang); render(); } }
-  $('#currency').onchange=(e)=>{ currency=e.target.value; render(); }
-  $('#sort').onchange=(e)=>{ sortBy=e.target.value; render(); }
-  $('#shipMax').onchange=(e)=>{ maxShipDays=e.target.value; render(); }
+  $('#currency')?.addEventListener('change',(e)=>{ currency=e.target.value; render(); });
+  $('#sort')?.addEventListener('change',(e)=>{ sortBy=e.target.value; render(); });
+  $('#shipMax')?.addEventListener('change',(e)=>{ maxShipDays=e.target.value; render(); });
 
   // Stores panel
   buildSourcesPanel();
@@ -549,33 +532,34 @@ window.addEventListener('DOMContentLoaded', async ()=>{
 
   // Budget filter
   $('#applyBudget')?.addEventListener('click', ()=>{
-    const minV = $('#minPrice').value.trim(); const maxV = $('#maxPrice').value.trim();
+    const minV = $('#minPrice')?.value.trim() || '';
+    const maxV = $('#maxPrice')?.value.trim() || '';
     minPriceVal = minV==='' ? null : Math.max(0, Number(minV));
     maxPriceVal = maxV==='' ? null : Math.max(0, Number(maxV));
     render();
   });
 
   // Search input
-  $('#search').oninput=(e)=>{ query=e.target.value; localStorage.setItem('ps.lastQuery',query);
+  $('#search')?.addEventListener('input',(e)=>{ query=e.target.value; localStorage.setItem('ps.lastQuery',query);
     clearTimeout(debounce); debounce=setTimeout(async()=>{
       Object.keys(vendorPages).forEach(k=> vendorPages[k]=1);
       await loadAll({append:false});
       render();
-    },250); };
-  $('#searchBtn').onclick=()=>{ const input=$('#search'); if(input){ input.dispatchEvent(new Event('input',{bubbles:true})); } }
+    },250); });
+  $('#searchBtn')?.addEventListener('click',()=>{ const input=$('#search'); if(input){ input.dispatchEvent(new Event('input',{bubbles:true})); } });
 
   // Photo search
-  $('#photoBtn').onclick = ()=> $('#photoInput').click();
-  $('#photoInput').onchange = ()=> { const f=$('#photoInput').files?.[0]; if (f) searchByPhoto(f); };
+  $('#photoBtn')?.addEventListener('click', ()=> $('#photoInput')?.click());
+  $('#photoInput')?.addEventListener('change', ()=> { const f=$('#photoInput')?.files?.[0]; if (f) searchByPhoto(f); });
 
   // Chat assistant open/close (X, bg, Esc)
-  $('#chatFab').onclick = ()=>{ openChat(); };
-  $('#chatClose').addEventListener('click', (e)=>{ e.preventDefault(); closeChat(); });
-  $('#chatBg').addEventListener('click', ()=> closeChat());
+  $('#chatFab')?.addEventListener('click', ()=>{ openChat(); });
+  $('#chatClose')?.addEventListener('click', (e)=>{ e.preventDefault(); closeChat(); });
+  $('#chatBg')?.addEventListener('click', ()=> closeChat());
   document.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ closeChat(); }});
-  $('#chatForm').onsubmit = async (e)=>{
+  $('#chatForm')?.addEventListener('submit', async (e)=>{
     e.preventDefault();
-    const txt = $('#chatInput').value.trim();
+    const txt = $('#chatInput')?.value.trim();
     if(!txt) return;
     addChatMsg('user', `<div class="me-text">${txt}</div>`);
     $('#chatInput').value='';
@@ -583,7 +567,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   });
 
   // More results (paged fetch for each enabled vendor)
-  $('#moreBtn').addEventListener('click', async ()=>{
+  $('#moreBtn')?.addEventListener('click', async ()=>{
     vendorDefs.filter(v=>v.live && enabled.includes(v.name)).forEach(v => vendorPages[v.name] = (vendorPages[v.name]||1) + 1);
     const before = currentResults().length;
     await loadAll({append:true});
@@ -595,11 +579,12 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     }
   });
 
-  // Cashback + Signup modal
-  initCashback();
+  // Cashback (advert-only) + Signup modal
+  initCashbackLite();
   initSignupUI();
 
-  captureReferral(); await loadRates();
+  // FX + boot search
+  await loadRates();
 
   // Start query
   const startTerm=(new URLSearchParams(location.search).get('q')) || (localStorage.getItem('ps.lastQuery')) || 'headphones';
