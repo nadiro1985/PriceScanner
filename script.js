@@ -1,7 +1,6 @@
 // === CONFIG / STATE ===
 const WORKER_BASE = "https://pricescanner.b48rptrywg.workers.dev";
 const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
-// Neutral placeholder if an image fails to load
 const PLACEHOLDER_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="450" viewBox="0 0 600 450">
      <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
@@ -13,20 +12,16 @@ const PLACEHOLDER_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
    </svg>`
 );
 
-// Keep: Amazon, eBay, AliExpress live. Shopee, Etsy, Alibaba = coming soon
+// Live vendors
 const vendorDefs = [
   { name: "AliExpress", slug: "aliexpress", supported: true,  color: "red"   },
   { name: "Amazon",     slug: "amazon",     supported: true,  color: "blue"  },
-  { name: "eBay",       slug: "ebay",       supported: true,  color: "green" },
-  { name: "Alibaba",    slug: "alibaba",    supported: false, comingSoon: true, color: "blue" },
-  { name: "Etsy",       slug: "etsy",       supported: false, comingSoon: true, color: "green" },
-  { name: "Shopee",     slug: "shopee",     supported: false, comingSoon: true, color: "red" }
+  { name: "eBay",       slug: "ebay",       supported: true,  color: "green" }
 ];
-// Enabled vendors default = all supported
-let enabled = vendorDefs.filter(v => v.supported).map(v => v.name);
 
-// paging per vendor (for "More results")
-const vendorPages = Object.fromEntries(vendorDefs.map(v => [v.name, 1]));
+// enabled set starts with all
+let enabled = vendorDefs.filter(v => v.supported).map(v => v.name);
+const vendorPages = Object.fromEntries(vendorDefs.map(v => [v.name, 1])); // for "more"
 const vendorLimits = { "AliExpress": 40, "eBay": 50, "Amazon": 10 };
 
 let currency    = "SGD";
@@ -38,19 +33,14 @@ let fx          = { base:"USD", rates:{ USD:1 }, at:0 };
 let watches     = JSON.parse(localStorage.getItem('ps.watches')||"[]");
 let lang        = localStorage.getItem('ps.lang') || 'en';
 let theme       = localStorage.getItem('ps.theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-let lastFocusedEl = null;
 // Budget filter
 let minPriceVal = null, maxPriceVal = null;
 
 const offersByVendor = Object.fromEntries(vendorDefs.map(v => [v.name, []]));
 
-// i18n
+// i18n (short)
 const i18n = {
-  en:{Lang:"Language",Currency:"Currency",Sort:"Sort by",Sources:"Sources",Watchlist:"Watchlist",Refresh:"Refresh",MaxShip:"Max ship days"},
-  ar:{Lang:"اللغة",Currency:"العملة",Sort:"ترتيب حسب",Sources:"المصادر",Watchlist:"قائمة المراقبة",Refresh:"تحديث",MaxShip:"أقصى أيام للشحن"},
-  fr:{Langue:"Langue",Currency:"Devise",Sort:"Trier par",Sources:"Sources",Watchlist:"Liste de suivi",Refresh:"Actualiser",MaxShip:"Délais max"},
-  es:{Lang:"Idioma",Currency:"Moneda",Sort:"Ordenar por",Sources:"Fuentes",Watchlist:"Lista",Refresh:"Actualizar",MaxShip:"Días máx envío"},
-  zh:{Lang:"语言",Currency:"货币",Sort:"排序",Sources:"来源",Watchlist:"关注列表",Refresh:"刷新",MaxShip:"最⻓运输天数"}
+  en:{Lang:"Language",Currency:"Currency",Sort:"Sort by",Watchlist:"Watchlist",Refresh:"Refresh",MaxShip:"Max ship days"}
 };
 const trending = ["headphones","iphone","ssd","laptop","smartwatch","wireless earbuds","gaming mouse","4K TV","backpack"];
 
@@ -90,7 +80,7 @@ function convertAmount(amount, fromCur){ const from=(fromCur||"USD").toUpperCase
 function priceInSelected(o){ return convertAmount(o.price, o.currency||"USD"); }
 function estimateShipDays(vendor,country){
   const fast = new Set(["eBay","Amazon"]);
-  const intl = new Set(["AliExpress","Shopee","Etsy","Alibaba"]);
+  const intl = new Set(["AliExpress"]);
   if (fast.has(vendor)) return (["SG","US","GB"].includes(country))?3:7;
   if (intl.has(vendor)) return (country==="SG")?7:14;
   return 10;
@@ -136,7 +126,6 @@ async function enrichAliDetails(items){
 // loaders (paged)
 async function loadVendor(vendor, {append=false, page=1}={}){
   const def = vendorDefs.find(v => v.name === vendor); if (!def) return;
-  if (!def.supported) return;
 
   const term=(query||"").trim(); if(!enabled.includes(vendor)||!WORKER_BASE||!term) return;
 
@@ -150,8 +139,6 @@ async function loadVendor(vendor, {append=false, page=1}={}){
     const r=await fetch(url.toString(),{mode:"cors",cache:"no-store"});
     const d=await r.json().catch(()=>({results:[]}));
     if(!r.ok){ console.warn(`${vendor} search error`, r.status, d); return; }
-    if (d.error) console.warn(`${vendor} search error:`, d.error);
-    if (d.note)  console.info(`${vendor} search note:`, d.note);
 
     let arr=(Array.isArray(d.results)?d.results:[]).map(o=>({
       ...o,
@@ -163,11 +150,8 @@ async function loadVendor(vendor, {append=false, page=1}={}){
 
     if (vendor === "AliExpress" && arr.length) arr = await enrichAliDetails(arr);
 
-    if (append) {
-      offersByVendor[vendor] = (offersByVendor[vendor]||[]).concat(arr);
-    } else {
-      offersByVendor[vendor] = arr;
-    }
+    if (append) offersByVendor[vendor] = (offersByVendor[vendor]||[]).concat(arr);
+    else offersByVendor[vendor] = arr;
 
     console.log(`[${vendor}] page ${page} loaded:`, arr.length, 'items for', term);
   }catch(e){ console.warn(`${vendor} search fetch failed:`,e); }
@@ -212,15 +196,6 @@ function renderLabels(){
   document.documentElement.dir = (lang==='ar') ? 'rtl' : 'ltr';
 }
 
-function vendorColorStyle(name){
-  const v = vendorDefs.find(x=>x.name===name);
-  if(!v) return '';
-  if (v.color==='blue') return 'var(--brand-blue)';
-  if (v.color==='red')  return 'var(--brand-red)';
-  if (v.color==='green')return 'var(--brand-green)';
-  return 'var(--accent-1)';
-}
-
 // Build / wire the Sources dropdown with checkboxes
 function buildSourcesDropdown(){
   const listWrap = $('#srcList');
@@ -250,12 +225,8 @@ function buildSourcesDropdown(){
   if (chkAll) {
     chkAll.checked = live.every(n => enabled.includes(n));
     chkAll.onchange = ()=>{
-      if (chkAll.checked) {
-        enabled = [...live];
-      } else {
-        enabled = [];
-      }
-      // set individual checks
+      if (chkAll.checked) enabled = [...live];
+      else enabled = [];
       live.forEach(name=>{
         const el = document.getElementById('chk_' + name.replace(/\s+/g,''));
         if (el) el.checked = chkAll.checked;
@@ -278,49 +249,16 @@ function toggleDropdown(open){
   const menu = $('#srcDropdown'); const btn = $('#srcDropdownBtn');
   if (!menu || !btn) return;
   if (open===undefined) open = menu.hasAttribute('hidden');
-  if (open) {
-    menu.removeAttribute('hidden');
-    btn.setAttribute('aria-expanded','true');
-  } else {
-    menu.setAttribute('hidden','');
-    btn.setAttribute('aria-expanded','false');
-  }
+  if (open) { menu.removeAttribute('hidden'); btn.setAttribute('aria-expanded','true'); }
+  else { menu.setAttribute('hidden',''); btn.setAttribute('aria-expanded','false'); }
 }
 
-// signup modal
+// signup modal (skeleton, unchanged hooks)
 function initSignupUI(){
-  const modal=$('#signupModal'), openBtn=$('#openSignup'), closeBtn=$('#suClose'),
-        step1=$('#signupStep1'), step2=$('#signupStep2'), msg=$('#signupMsg'),
-        emailEl=$('#suEmail'), codeEl=$('#suCode'), sendBtn=$('#suSend'), verifyBtn=$('#suVerify');
-
-  function trapTab(e){
-    if(!modal || e.key!=='Tab') return;
-    const f = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
-    const first = f[0], last = f[f.length-1];
-    if (e.shiftKey && document.activeElement === first){ last.focus(); e.preventDefault(); }
-    else if (!e.shiftKey && document.activeElement === last){ first.focus(); e.preventDefault(); }
-  }
-  function openModal(){
-    if(!modal) return;
-    lastFocusedEl = document.activeElement;
-    if(msg) msg.textContent='';
-    if(step1) step1.style.display='block';
-    if(step2) step2.style.display='none';
-    show(modal,true);
-    emailEl?.focus();
-    document.addEventListener('keydown', trapTab);
-  }
-  function closeModal(){
-    show(modal,false);
-    document.removeEventListener('keydown', trapTab);
-    lastFocusedEl?.focus();
-  }
-
-  if(!openBtn||!modal) return;
-  openBtn.onclick=openModal;
-  if(closeBtn) closeBtn.onclick=closeModal;
-  modal?.addEventListener('click', (e)=>{ if(e.target===modal) closeModal(); });
-  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && modal?.style.display==='flex') closeModal(); });
+  const modal=$('#signupModal'), openBtn=$('#openSignup'), closeBtn=$('#suClose');
+  if(!openBtn) return;
+  openBtn.onclick=()=>{ if(!modal) return; show(modal,true); };
+  if(closeBtn) closeBtn.onclick=()=>{ if(!modal) return; show(modal,false); };
 }
 
 // save watchlist to server
@@ -349,7 +287,7 @@ function render(){
         <img loading="lazy" src="${item.image || PLACEHOLDER_IMG}" alt="${item.title} product image" onerror="this.src='${PLACEHOLDER_IMG}'"/>
       </div>
       <div class="cardBody">
-        <h3 class="title clamp-2">${item.title}</h3>
+        <h3 class="title clamp-2" style="color:#146EB4;font-weight:800">${item.title}</h3>
         <div class="price">${fmt(p)}</div>
 
         <div class="metaRow">
@@ -372,36 +310,15 @@ function render(){
     grid.appendChild(card);
   });
 
-  // Show/Hide "More results" button
+  // --- More results button visibility ---
   const moreBtn = $('#moreBtn');
-  if (data.length) {
-    moreBtn.style.display = 'inline-flex';
+  if (query.trim().length > 0) {
+    moreBtn.style.display = 'inline-flex';   // keep visible after a search
+    moreBtn.disabled = data.length === 0;    // if no data yet, disable but visible
+    moreBtn.style.opacity = moreBtn.disabled ? '.6' : '1';
+    moreBtn.style.pointerEvents = moreBtn.disabled ? 'none' : 'auto';
   } else {
-    moreBtn.style.display = 'none';
-  }
-
-  // Watchlist
-  const list = $('#watchlist'); if (list) {
-    list.innerHTML = watches.length ? '' : '<div class="muted">No watched items yet.</div>';
-    watches.forEach(w=>{
-      const row=document.createElement('div'); row.className='card thinBorder';
-      row.innerHTML = `
-        <div class="pad-sm">
-          <div class="wlTitle">${w.title}</div>
-          <div class="wlMeta">Baseline: ${w.baseline??'—'} • Last: ${w.last??'—'} • ${w.triggered?'Triggered':'Waiting'}</div>
-          <div class="row gap wrap">
-            <input type="number" class="input discount" placeholder="Discount % from baseline" value="${w.discountPct??''}"/>
-            <label class="inline"><input type="checkbox" class="emailOpt"${w.emailOpt?' checked':''}/> email alerts</label>
-            <button class="btn resetBase" type="button">Reset baseline</button>
-            <button class="btn remove" type="button">Remove</button>
-          </div>
-        </div>`;
-      row.querySelector('.discount').oninput = async (e)=>{ w.discountPct=Number(e.target.value); saveWatches(); await pushWatchlistToServer(); };
-      row.querySelector('.emailOpt').onchange = async (e)=>{ w.emailOpt=e.target.checked; saveWatches(); await pushWatchlistToServer(); };
-      row.querySelector('.resetBase').onclick = ()=>{ delete w.baseline; saveWatches(); render(); };
-      row.querySelector('.remove').onclick = ()=>{ watches=watches.filter(x=>x!==w); saveWatches(); render(); };
-      list.appendChild(row);
-    });
+    moreBtn.style.display = 'none';          // hidden before first query
   }
 }
 
@@ -413,24 +330,9 @@ function addWatch(item){
   watches=[{ id, title:item.title, vendors:[...enabled], discountPct:15, emailOpt:false }, ...watches];
   saveWatches(); toast('Added to watchlist'); render();
 }
-async function refreshWatches(){
-  const data=currentResults(); let changed=false, msg;
-  watches=watches.map(w=>{
-    const pool=data.filter(o=>w.vendors.includes(o.vendor)&&o.title.toLowerCase().includes(w.title.toLowerCase().split(' sample')[0]));
-    if(!pool.length) return w;
-    const best=pool.reduce((a,b)=> priceInSelected(a)<=priceInSelected(b)?a:b);
-    const baseline=w.baseline??priceInSelected(best);
-    const discount=baseline>0?((baseline-priceInSelected(best))/baseline)*100:0;
-    const trig=(typeof w.discountPct==='number') && (discount>=(w.discountPct||0));
-    if(trig && !w.triggered) msg=`${w.title} @ ${best.vendor} → ${fmt(priceInSelected(best))}`;
-    if(trig!==!!w.triggered || w.last!==priceInSelected(best)||w.lastVendor!==best.vendor||w.baseline!==baseline) changed=true;
-    return {...w, baseline, last:priceInSelected(best), lastVendor:best.vendor, triggered:trig};
-  });
-  if(changed) saveWatches(); if(msg) toast(msg); render();
-}
-function toast(m){ const t=$('#toast'); if(!t) return; t.textContent=m; t.style.display='block'; setTimeout(()=>t.style.display='none',3500); }
+function toast(m){ const t=$('#toast'); if(!t) return; t.textContent=m; t.style.display='block'; setTimeout(()=>t.style.display='none',2500); }
 
-/* ============ Search by Photo & Chat Assistant ============ */
+/* ============ Photo Search & Chat Assistant ============ */
 let mobilenetModel = null;
 function loadScript(src){ return new Promise((resolve,reject)=>{ const s=document.createElement('script'); s.src=src; s.async=true; s.onload=resolve; s.onerror=reject; document.head.appendChild(s); });}
 async function ensureMobileNet(){
@@ -464,7 +366,7 @@ async function searchByPhoto(file){
   }
 }
 
-// Chat assistant (open/close + intent → results)
+// Chat assistant (open/close + reflect results to main grid)
 function openChat(){ const p=$('#chatPanel'); if(!p) return; p.classList.add('open'); $('#chatInput')?.focus(); }
 function closeChat(){ const p=$('#chatPanel'); if(!p) return; p.classList.remove('open'); }
 function addChatMsg(role, html){
@@ -570,10 +472,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   buildSourcesDropdown();
   $('#srcDropdownBtn')?.addEventListener('click', ()=> toggleDropdown());
   document.addEventListener('click', (e)=>{
-    const dd = $('#srcFilter');
-    if (!dd) return;
-    const menu = $('#srcDropdown');
-    if (!menu) return;
+    const dd = $('#srcFilter'); if (!dd) return;
     if (!dd.contains(e.target)) toggleDropdown(false);
   });
 
@@ -598,7 +497,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   $('#photoBtn').onclick = ()=> $('#photoInput').click();
   $('#photoInput').onchange = ()=> { const f=$('#photoInput').files?.[0]; if (f) searchByPhoto(f); };
 
-  // Chat assistant open/close (robust)
+  // Chat assistant open/close
   $('#chatFab').onclick = ()=>{ openChat(); };
   $('#chatClose').addEventListener('click', (e)=>{ e.preventDefault(); closeChat(); });
   $('#chatBg').addEventListener('click', ()=> closeChat());
@@ -615,24 +514,22 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   // More results
   $('#moreBtn').addEventListener('click', async ()=>{
     // increment page for each enabled live vendor
-    let before = currentResults().length;
     vendorDefs.filter(v=>v.supported && enabled.includes(v.name)).forEach(v => vendorPages[v.name] = (vendorPages[v.name]||1) + 1);
+    const before = currentResults().length;
     await loadAll({append:true});
     const after = currentResults().length;
     render();
     if (after === before) {
-      $('#moreBtn').style.display = 'none';
       toast('No more results.');
+      // keep the button visible but disabled so it isn't "removed"
+      const mb = $('#moreBtn'); mb.disabled = true; mb.style.opacity = '.6'; mb.style.pointerEvents = 'none';
     }
   });
 
-  $('#refreshBtn')?.addEventListener('click', refreshWatches);
+  captureReferral(); await loadRates();
 
-  // boot
-  initSignupUI(); captureReferral(); await loadRates();
-
+  // Start query (tight boot)
   const startTerm=defaultQuery(); query=startTerm; const se=$('#search'); if(se) se.value=startTerm;
-
   Object.keys(vendorPages).forEach(k=> vendorPages[k]=1);
   await loadAll({append:false});
   render();
