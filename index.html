@@ -6,8 +6,8 @@
   <title>PriceScanner — Compare Amazon, eBay & AliExpress</title>
   <meta name="description" content="Search once across trusted stores. Clear prices, buyer protection and secure checkout.">
   <meta name="theme-color" content="#146EB4">
-  <link rel="icon" href="logo.svg?v=7">
-  <link rel="mask-icon" href="logo.svg?v=7" color="#146EB4">
+  <link rel="icon" href="logo.svg?v=8">
+  <link rel="mask-icon" href="logo.svg?v=8" color="#146EB4">
   <link rel="stylesheet" href="styles.css?v=47">
 
   <link rel="canonical" href="https://nadiro1985.github.io/PriceScanner/">
@@ -45,7 +45,7 @@
   </script>
 
   <style>
-    /* --- Tight hero and heading spacing --- */
+    /* ===== Tight hero + brand ===== */
     .heroWrap{border-radius:12px;background:var(--card,#fff);overflow:hidden}
     .heroContent{padding:12px 12px}
     .topBar{display:flex;align-items:center;gap:12px;margin-bottom:6px}
@@ -59,19 +59,25 @@
     .heroTitle{margin:4px 0 2px 0;font-size:34px;line-height:1.15;color:#146EB4;font-weight:800}
     .heroSub{margin:2px 0 8px 0;color:#111}
     .searchBar{margin-top:6px}
+
+    /* ===== Filters row ===== */
     .filtersBar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:8px}
-    .dropdown{position:relative}
-    .dropdown-menu{position:absolute;top:calc(100% + 6px);left:0;min-width:260px;background:var(--card,#fff);border:1px solid rgba(0,0,0,.1);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.12);padding:10px;z-index:40}
-    .dropdown-menu[hidden]{display:none}
-    .dd-item{display:flex;align-items:center;gap:8px;padding:6px 4px;font-size:14px}
-    .dd-item input{transform:translateY(1px)}
-    .dd-sep{height:1px;background:rgba(0,0,0,.08);margin:6px 0}
     .budgetWrap{display:flex;gap:8px;align-items:center}
     .input.small{padding:.5rem .6rem;font-size:14px;width:110px}
     .row.center{display:flex;justify-content:center;margin-top:12px}
 
-    /* Chat assistant (ensures visible & closable) */
-    .chat-fab{position:fixed;right:16px;bottom:16px;z-index:70}
+    /* ===== Stores panel (blue) + red chips ===== */
+    .sourcesPanel{background:#146EB4;color:#fff;border-radius:12px;padding:10px;margin:10px 0 0 0}
+    .sourcesHeading{font-weight:800;margin-bottom:6px}
+    .src-list{display:flex;flex-wrap:wrap;gap:8px}
+    .src-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:10px;border:2px solid #E11900;background:#fff5f5;color:#E11900;font-weight:700;cursor:pointer;user-select:none}
+    .src-chip input{accent-color:#E11900}
+    .src-chip.on{background:#E11900;color:#fff;border-color:#E11900}
+    .src-chip.src-all{border-color:#0ea5e9;background:#e0f2fe;color:#075985}
+    .src-chip.src-all.on{background:#0ea5e9;color:#fff;border-color:#0ea5e9}
+
+    /* ===== Chat assistant ===== */
+    .chat-fab{position:fixed;right:16px;bottom:16px;z-index:70;display:inline-flex;align-items:center;gap:8px;background:#146EB4;color:#fff;border:1px solid #0f5790;padding:.7rem 1rem;border-radius:999px;box-shadow:0 6px 16px rgba(0,0,0,.18);font-weight:800}
     .chat-panel{position:fixed;inset:0;display:none;z-index:60}
     .chat-panel.open{display:flex}
     .chat-bg{position:absolute;inset:0;background:rgba(0,0,0,.35)}
@@ -81,11 +87,11 @@
 <body>
   <div class="container pad">
     <div class="heroWrap">
-      <!-- Removed video to eliminate extra blank space -->
+      <!-- No hero image/video to avoid extra top space -->
       <div class="heroContent">
         <div class="topBar">
           <div class="logoWrap">
-            <img id="brandLogo" class="brandLogo" src="logo.svg?v=7" alt="PriceScanner logo" width="60" height="60">
+            <img id="brandLogo" class="brandLogo" src="logo.svg?v=8" alt="PriceScanner logo" width="60" height="60">
             <div id="brandName" class="logoText">PriceScanner</div>
           </div>
 
@@ -120,17 +126,8 @@
           <button id="searchBtn" class="btn btn-primary" type="button">Search</button>
         </form>
 
-        <!-- Filters row (Sources dropdown + Budget + Sort + Ship) -->
+        <!-- Filters row (Budget + Sort + Ship) -->
         <div class="filtersBar" role="group" aria-label="Filters">
-          <div class="dropdown" id="srcFilter">
-            <button id="srcDropdownBtn" class="btn" type="button" aria-haspopup="true" aria-expanded="false">All sources ▾</button>
-            <div id="srcDropdown" class="dropdown-menu" hidden>
-              <label class="dd-item"><input type="checkbox" id="chkAll" checked> <span>All sources</span></label>
-              <div class="dd-sep"></div>
-              <div id="srcList"></div>
-            </div>
-          </div>
-
           <div class="budgetWrap" aria-label="Budget filter">
             <input id="minPrice" class="input small" type="number" min="0" step="1" placeholder="Min">
             <input id="maxPrice" class="input small" type="number" min="0" step="1" placeholder="Max">
@@ -155,6 +152,18 @@
             <option value="21">≤ 21</option>
           </select>
         </div>
+
+        <!-- NEW: Visible Stores selection (blue panel + red chips) -->
+        <div class="sourcesPanel" id="sourcesPanel" aria-label="Store filter">
+          <div class="sourcesHeading">Stores</div>
+          <div class="src-list">
+            <label class="src-chip src-all" title="Select / Deselect all">
+              <input type="checkbox" id="srcAll" checked> <span>Select all</span>
+            </label>
+            <div id="sourcesPanelList" class="src-list"></div>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -178,8 +187,8 @@
     </div>
   </footer>
 
-  <!-- Floating Chat Assistant -->
-  <button id="chatFab" class="chat-fab" aria-label="Open shopping assistant">🛍️</button>
+  <!-- Floating Chat Assistant (now with label) -->
+  <button id="chatFab" class="chat-fab" aria-label="Open shopping assistant">🛍️ Shopping Assistant</button>
 
   <!-- Chat overlay with background click-to-close -->
   <div id="chatPanel" class="chat-panel" aria-live="polite" aria-label="Shopping assistant">
@@ -207,6 +216,6 @@
     });
   </script>
 
-  <script defer src="script.js?v=48"></script>
+  <script defer src="script.js?v=49"></script>
 </body>
 </html>
