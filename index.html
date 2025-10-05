@@ -7,9 +7,9 @@
   <meta name="description" content="Search once across trusted stores. Clear prices, buyer protection and secure checkout.">
   <meta name="theme-color" content="#146EB4">
   <!-- bump these numbers any time to hard-refresh -->
-  <link rel="icon" href="logo.svg?v=11">
-  <link rel="mask-icon" href="logo.svg?v=11" color="#146EB4">
-  <link rel="stylesheet" href="styles.css?v=60">
+  <link rel="icon" href="logo.svg?v=12">
+  <link rel="mask-icon" href="logo.svg?v=12" color="#146EB4">
+  <link rel="stylesheet" href="styles.css?v=61">
 
   <link rel="canonical" href="https://nadiro1985.github.io/PriceScanner/">
   <meta property="og:title" content="PriceScanner — Compare Amazon, eBay & AliExpress">
@@ -81,7 +81,7 @@
     .src-chip.src-all{border-color:#0ea5e9;background:#e0f2fe;color:#075985}
     .src-chip.src-all.on{background:#0ea5e9;color:#fff;border-color:#0ea5e9}
 
-    /* Cashback */
+    /* Cashback (advert only) */
     .cashbackBar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:space-between;background:#0ea5e9;color:#fff;border-radius:12px;padding:10px;margin:10px 0}
     .cashLeft{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
     .cashTitle{font-weight:900}
@@ -104,7 +104,7 @@
 <body>
   <div class="container pad">
 
-    <!-- Cashback banner -->
+    <!-- Cashback banner (advert only) -->
     <section class="cashbackBar" id="cashBar" aria-label="Cashback announcement">
       <div class="cashLeft">
         <strong class="cashTitle">Earn 2–10% cashback</strong>
@@ -116,6 +116,7 @@
       </div>
     </section>
 
+    <!-- Info expands/collapses; no signup form; no network calls -->
     <section id="cashInfo" class="cashInfo" aria-live="polite">
       <h3 style="margin:0 0 6px 0;color:#146EB4;font-weight:900">How cashback will work</h3>
       <ul class="cashBullets">
@@ -124,11 +125,7 @@
         <li>Cashback is awarded after delivery is confirmed and no return is made.</li>
         <li>Redeem as cash or apply it to your next payment.</li>
       </ul>
-      <form id="cashForm" class="row" onsubmit="return false" style="gap:8px;align-items:center">
-        <input id="cashEmail" class="input" type="email" placeholder="you@example.com" autocomplete="email" style="max-width:280px">
-        <button id="cashNotify" class="btn btn-primary" type="submit">Notify me</button>
-        <span id="cashMsg" style="font-size:13px;color:#0f172a"></span>
-      </form>
+      <p style="margin:0;color:#334155;font-size:14px">Sign up and payout options will be added here later.</p>
     </section>
 
     <!-- Header / hero -->
@@ -136,7 +133,7 @@
       <div class="heroContent">
         <div class="topBar">
           <div class="logoWrap">
-            <img id="brandLogo" class="brandLogo" src="logo.svg?v=11" alt="PriceScanner logo" width="60" height="60">
+            <img id="brandLogo" class="brandLogo" src="logo.svg?v=12" alt="PriceScanner logo" width="60" height="60">
             <div id="brandName" class="logoText">PriceScanner</div>
           </div>
 
@@ -226,7 +223,7 @@
         <a href="privacy.html" rel="nofollow">Privacy</a>
         <a href="terms.html" rel="nofollow">Terms</a>
         <a href="affiliates.html" rel="nofollow">Affiliate Disclosure</a>
-        <!-- NEW: Force update button -->
+        <!-- Force update button -->
         <button id="forceUpdate" class="btn" type="button" title="Clear cache and reload new files">Force update</button>
       </div>
     </div>
@@ -284,7 +281,7 @@
       if (input) input.dispatchEvent(new Event('input', { bubbles: true }));
     });
 
-    // NEW: Force update handler (clears caches + SW and reloads with fresh ?v=)
+    // Force update handler (clears caches + SW and reloads with fresh ?v=)
     async function forceUpdate(){
       try{
         if('caches' in window){
@@ -303,6 +300,6 @@
   </script>
 
   <!-- IMPORTANT: keep script.js a JS file (not HTML). Cache-busted version below. -->
-  <script defer src="script.js?v=60"></script>
+  <script defer src="script.js?v=61"></script>
 </body>
 </html>
