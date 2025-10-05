@@ -75,8 +75,6 @@
     .src-chip.on{background:#E11900;color:#fff;border-color:#E11900}
     .src-chip.src-all{border-color:#0ea5e9;background:#e0f2fe;color:#075985}
     .src-chip.src-all.on{background:#0ea5e9;color:#fff;border-color:#0ea5e9}
-    .src-chip.disabled{opacity:.55;cursor:not-allowed;border-style:dashed}
-    .src-chip.disabled input{display:none}
 
     /* ===== Chat assistant ===== */
     .chat-fab{position:fixed;right:16px;bottom:16px;z-index:70;display:inline-flex;align-items:center;gap:8px;background:#146EB4;color:#fff;border:1px solid #0f5790;padding:.7rem 1rem;border-radius:999px;box-shadow:0 6px 16px rgba(0,0,0,.18);font-weight:800}
@@ -89,6 +87,7 @@
 <body>
   <div class="container pad">
     <div class="heroWrap">
+      <!-- No hero image/video to avoid extra top space -->
       <div class="heroContent">
         <div class="topBar">
           <div class="logoWrap">
@@ -188,10 +187,10 @@
     </div>
   </footer>
 
-  <!-- Floating Chat Assistant (label visible) -->
+  <!-- Floating Chat Assistant (now with label) -->
   <button id="chatFab" class="chat-fab" aria-label="Open shopping assistant">🛍️ Shopping Assistant</button>
 
-  <!-- Chat overlay -->
+  <!-- Chat overlay with background click-to-close -->
   <div id="chatPanel" class="chat-panel" aria-live="polite" aria-label="Shopping assistant">
     <div class="chat-bg" id="chatBg"></div>
     <div class="chat-box">
@@ -217,6 +216,6 @@
     });
   </script>
 
-  <script defer src="script.js?v=50"></script>
+  <script defer src="script.js?v=49"></script>
 </body>
 </html>
