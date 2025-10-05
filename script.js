@@ -12,17 +12,17 @@ const PLACEHOLDER_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
    </svg>`
 );
 
-// Live vendors
+// Live vendors (alphabetical for UI)
 const vendorDefs = [
   { name: "AliExpress", slug: "aliexpress", supported: true,  color: "red"   },
   { name: "Amazon",     slug: "amazon",     supported: true,  color: "blue"  },
   { name: "eBay",       slug: "ebay",       supported: true,  color: "green" }
-];
+].sort((a,b)=>a.name.localeCompare(b.name));
 
 // enabled set starts with all
 let enabled = vendorDefs.filter(v => v.supported).map(v => v.name);
-const vendorPages = Object.fromEntries(vendorDefs.map(v => [v.name, 1])); // for "more"
-const vendorLimits = { "AliExpress": 40, "eBay": 50, "Amazon": 10 };
+const vendorPages  = Object.fromEntries(vendorDefs.map(v => [v.name, 1])); // for "More results"
+const vendorLimits = { "AliExpress": 40, "eBay": 50, "Amazon": 10 };       // soft paging hints
 
 let currency    = "SGD";
 let sortBy      = "priceAsc";
@@ -39,9 +39,7 @@ let minPriceVal = null, maxPriceVal = null;
 const offersByVendor = Object.fromEntries(vendorDefs.map(v => [v.name, []]));
 
 // i18n (short)
-const i18n = {
-  en:{Lang:"Language",Currency:"Currency",Sort:"Sort by",Watchlist:"Watchlist",Refresh:"Refresh",MaxShip:"Max ship days"}
-};
+const i18n = { en:{Lang:"Language",Currency:"Currency",Sort:"Sort by",Watchlist:"Watchlist",Refresh:"Refresh",MaxShip:"Max ship days"} };
 const trending = ["headphones","iphone","ssd","laptop","smartwatch","wireless earbuds","gaming mouse","4K TV","backpack"];
 
 // helpers
@@ -126,7 +124,6 @@ async function enrichAliDetails(items){
 // loaders (paged)
 async function loadVendor(vendor, {append=false, page=1}={}){
   const def = vendorDefs.find(v => v.name === vendor); if (!def) return;
-
   const term=(query||"").trim(); if(!enabled.includes(vendor)||!WORKER_BASE||!term) return;
 
   try{
@@ -196,64 +193,52 @@ function renderLabels(){
   document.documentElement.dir = (lang==='ar') ? 'rtl' : 'ltr';
 }
 
-// Build / wire the Sources dropdown with checkboxes
-function buildSourcesDropdown(){
-  const listWrap = $('#srcList');
-  if(!listWrap) return;
-  listWrap.innerHTML = '';
+/* ===== Stores panel ===== */
+function buildSourcesPanel(){
+  const list = $('#sourcesPanelList'); if(!list) return;
+  list.innerHTML = '';
 
-  const live = vendorDefs.filter(v=>v.supported).map(v=>v.name).sort((a,b)=>a.localeCompare(b));
-  live.forEach(name=>{
-    const id = 'chk_' + name.replace(/\s+/g,'');
-    const row = document.createElement('label');
-    row.className = 'dd-item';
-    row.innerHTML = `<input type="checkbox" id="${id}" ${enabled.includes(name)?'checked':''}> <span>${name}</span>`;
-    listWrap.appendChild(row);
-    row.querySelector('input').addEventListener('change', (e)=>{
-      if (e.target.checked) {
-        if (!enabled.includes(name)) enabled.push(name);
-      } else {
-        enabled = enabled.filter(v=>v!==name);
-      }
-      updateSourcesLabel();
+  // Build chips for each live vendor (alphabetical)
+  vendorDefs.filter(v=>v.supported).forEach(v=>{
+    const id='src_'+v.slug;
+    const label=document.createElement('label');
+    label.className='src-chip';
+    label.innerHTML=`<input type="checkbox" id="${id}" ${enabled.includes(v.name)?'checked':''}/> <span>${v.name}</span>`;
+    list.appendChild(label);
+
+    const inp=label.querySelector('input');
+    const sync = ()=> label.classList.toggle('on', inp.checked);
+    sync();
+
+    inp.addEventListener('change', async ()=>{
+      if(inp.checked){ if(!enabled.includes(v.name)) enabled.push(v.name); }
+      else { enabled = enabled.filter(n=>n!==v.name); }
+      updateSourcesAllBox();
+      sync();
+      if (query.trim()) { vendorPages[v.name]=1; await loadVendor(v.name,{append:false,page:1}); }
       render();
     });
   });
 
-  // All toggle
-  const chkAll = $('#chkAll');
-  if (chkAll) {
-    chkAll.checked = live.every(n => enabled.includes(n));
-    chkAll.onchange = ()=>{
-      if (chkAll.checked) enabled = [...live];
-      else enabled = [];
-      live.forEach(name=>{
-        const el = document.getElementById('chk_' + name.replace(/\s+/g,''));
-        if (el) el.checked = chkAll.checked;
-      });
-      updateSourcesLabel();
-      render();
-    };
-  }
-
-  updateSourcesLabel();
+  updateSourcesAllBox();
 }
-function updateSourcesLabel(){
-  const btn = $('#srcDropdownBtn'); if(!btn) return;
+function updateSourcesAllBox(){
+  const all = $('#srcAll'); if(!all) return;
   const live = vendorDefs.filter(v=>v.supported).map(v=>v.name);
-  if (enabled.length === 0) { btn.textContent = 'No source ▾'; return; }
-  if (enabled.length === live.length) { btn.textContent = 'All sources ▾'; return; }
-  btn.textContent = `${enabled.length} selected ▾`;
+  all.checked = live.length>0 && live.every(n=>enabled.includes(n));
+  const chip = all.closest('label'); if(chip) chip.classList.toggle('on', all.checked);
 }
-function toggleDropdown(open){
-  const menu = $('#srcDropdown'); const btn = $('#srcDropdownBtn');
-  if (!menu || !btn) return;
-  if (open===undefined) open = menu.hasAttribute('hidden');
-  if (open) { menu.removeAttribute('hidden'); btn.setAttribute('aria-expanded','true'); }
-  else { menu.setAttribute('hidden',''); btn.setAttribute('aria-expanded','false'); }
+function setAllSources(on){
+  enabled = on ? vendorDefs.filter(v=>v.supported).map(v=>v.name) : [];
+  // sync each chip
+  vendorDefs.filter(v=>v.supported).forEach(v=>{
+    const inp = document.getElementById('src_'+v.slug);
+    if (inp) { inp.checked = on; const chip = inp.closest('label'); chip?.classList.toggle('on', on); }
+  });
+  updateSourcesAllBox();
 }
 
-// signup modal (skeleton, unchanged hooks)
+/* ===== Signup modal (placeholder hooks) ===== */
 function initSignupUI(){
   const modal=$('#signupModal'), openBtn=$('#openSignup'), closeBtn=$('#suClose');
   if(!openBtn) return;
@@ -261,10 +246,10 @@ function initSignupUI(){
   if(closeBtn) closeBtn.onclick=()=>{ if(!modal) return; show(modal,false); };
 }
 
-// save watchlist to server
+// save watchlist to server (kept for future)
 async function pushWatchlistToServer(){
   const email=localStorage.getItem('ps.email')||''; if(!email) return;
-  const payload={ email, watches: watches.filter(w=>w.emailOpt&&typeof w.discountPct==='number').map(w=>({ title:w.title, vendors:w.vendors, discountPct:w.discountPct })) };
+  const payload={ email, watches: [] };
   if(!payload.watches.length) return;
   try{ await fetch(`${WORKER_BASE}/watchlist`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)}); }catch{}
 }
@@ -306,31 +291,21 @@ function render(){
           <button class="btn watchBtn" type="button">Watch</button>
         </div>
       </div>`;
-    card.querySelector('.watchBtn').onclick = ()=> addWatch(item);
+    card.querySelector('.watchBtn').onclick = ()=> {/* reserved for watchlist later */};
     grid.appendChild(card);
   });
 
   // --- More results button visibility ---
   const moreBtn = $('#moreBtn');
   if (query.trim().length > 0) {
-    moreBtn.style.display = 'inline-flex';   // keep visible after a search
-    moreBtn.disabled = data.length === 0;    // if no data yet, disable but visible
+    moreBtn.style.display = 'inline-flex';   // visible after any search
+    moreBtn.disabled = data.length === 0;    // disabled if nothing yet
     moreBtn.style.opacity = moreBtn.disabled ? '.6' : '1';
     moreBtn.style.pointerEvents = moreBtn.disabled ? 'none' : 'auto';
   } else {
     moreBtn.style.display = 'none';          // hidden before first query
   }
 }
-
-// watchlist helpers
-function saveWatches(){ localStorage.setItem('ps.watches', JSON.stringify(watches)) }
-function addWatch(item){
-  const id=(item.title+'|'+enabled.sort().join(',')).toLowerCase();
-  if (watches.find(w=>w.id===id)) { toast('Already in watchlist'); return; }
-  watches=[{ id, title:item.title, vendors:[...enabled], discountPct:15, emailOpt:false }, ...watches];
-  saveWatches(); toast('Added to watchlist'); render();
-}
-function toast(m){ const t=$('#toast'); if(!t) return; t.textContent=m; t.style.display='block'; setTimeout(()=>t.style.display='none',2500); }
 
 /* ============ Photo Search & Chat Assistant ============ */
 let mobilenetModel = null;
@@ -448,6 +423,14 @@ async function assistantRespond(userText){
   query = intent.query; localStorage.setItem('ps.lastQuery',query);
   Object.keys(vendorPages).forEach(k=> vendorPages[k]=1);
   enabled = vendorDefs.filter(v=>v.supported && intent.vendors.includes(v.name.toLowerCase())).map(v=>v.name);
+  // sync chips UI to the enabled set
+  setAllSources(false); // clears first
+  enabled.forEach(name=>{
+    const v = vendorDefs.find(v=>v.name===name);
+    if(v){ const inp = document.getElementById('src_'+v.slug); if(inp){ inp.checked=true; inp.closest('label')?.classList.add('on'); } }
+  });
+  updateSourcesAllBox();
+
   await loadAll({append:false});
   render();
 }
@@ -468,12 +451,17 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   $('#sort').onchange=(e)=>{ sortBy=e.target.value; render(); }
   $('#shipMax').onchange=(e)=>{ maxShipDays=e.target.value; render(); }
 
-  // Sources dropdown
-  buildSourcesDropdown();
-  $('#srcDropdownBtn')?.addEventListener('click', ()=> toggleDropdown());
-  document.addEventListener('click', (e)=>{
-    const dd = $('#srcFilter'); if (!dd) return;
-    if (!dd.contains(e.target)) toggleDropdown(false);
+  // Build stores panel
+  buildSourcesPanel();
+  $('#srcAll')?.addEventListener('change', async (e)=>{
+    const on = e.target.checked;
+    setAllSources(on);
+    if (query.trim()) {
+      // reset pages and reload all sources
+      Object.keys(vendorPages).forEach(k=> vendorPages[k]=1);
+      await loadAll({append:false});
+    }
+    render();
   });
 
   // Budget filter
@@ -497,7 +485,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   $('#photoBtn').onclick = ()=> $('#photoInput').click();
   $('#photoInput').onchange = ()=> { const f=$('#photoInput').files?.[0]; if (f) searchByPhoto(f); };
 
-  // Chat assistant open/close
+  // Chat assistant open/close (X, bg, Esc)
   $('#chatFab').onclick = ()=>{ openChat(); };
   $('#chatClose').addEventListener('click', (e)=>{ e.preventDefault(); closeChat(); });
   $('#chatBg').addEventListener('click', ()=> closeChat());
@@ -511,9 +499,8 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     await assistantRespond(txt);
   };
 
-  // More results
+  // More results (paged fetch for each enabled vendor)
   $('#moreBtn').addEventListener('click', async ()=>{
-    // increment page for each enabled live vendor
     vendorDefs.filter(v=>v.supported && enabled.includes(v.name)).forEach(v => vendorPages[v.name] = (vendorPages[v.name]||1) + 1);
     const before = currentResults().length;
     await loadAll({append:true});
@@ -521,7 +508,6 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     render();
     if (after === before) {
       toast('No more results.');
-      // keep the button visible but disabled so it isn't "removed"
       const mb = $('#moreBtn'); mb.disabled = true; mb.style.opacity = '.6'; mb.style.pointerEvents = 'none';
     }
   });
