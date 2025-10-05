@@ -1,6 +1,17 @@
 // === CONFIG / STATE ===
 const WORKER_BASE = "https://pricescanner.b48rptrywg.workers.dev";
 const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
+// Neutral placeholder if an image fails to load
+const PLACEHOLDER_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="450" viewBox="0 0 600 450">
+     <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+       <stop stop-color="#f3f4f6" offset="0"/><stop stop-color="#e5e7eb" offset="1"/>
+     </linearGradient></defs>
+     <rect width="600" height="450" fill="url(#g)"/>
+     <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
+           fill="#94a3b8" font-family="Arial" font-size="20">No image</text>
+   </svg>`
+);
 
 // Keep: Amazon, eBay, AliExpress live. Shopee, Etsy, Alibaba = coming soon
 const vendorDefs = [
