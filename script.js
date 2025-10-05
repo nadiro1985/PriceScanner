@@ -12,25 +12,14 @@ const PLACEHOLDER_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
    </svg>`
 );
 
-// === VENDORS ===
-// Live now: Amazon, eBay, AliExpress
-// Shown in panel (coming soon UI): Walmart, Best Buy, Target, Etsy, Newegg, Shopee, Lazada, Alibaba, Rakuten
+// Live vendors (alphabetical for UI)
 const vendorDefs = [
   { name: "AliExpress", slug: "aliexpress", supported: true,  color: "red"   },
   { name: "Amazon",     slug: "amazon",     supported: true,  color: "blue"  },
-  { name: "eBay",       slug: "ebay",       supported: true,  color: "green" },
-
-  { name: "Alibaba",    slug: "alibaba",    supported: false, color: "blue"  },
-  { name: "Best Buy",   slug: "bestbuy",    supported: false, color: "blue"  },
-  { name: "Etsy",       slug: "etsy",       supported: false, color: "green" },
-  { name: "Lazada",     slug: "lazada",     supported: false, color: "red"   },
-  { name: "Newegg",     slug: "newegg",     supported: false, color: "blue"  },
-  { name: "Rakuten",    slug: "rakuten",    supported: false, color: "blue"  },
-  { name: "Shopee",     slug: "shopee",     supported: false, color: "red"   },
-  { name: "Target",     slug: "target",     supported: false, color: "blue"  },
-  { name: "Walmart",    slug: "walmart",    supported: false, color: "blue"  }
+  { name: "eBay",       slug: "ebay",       supported: true,  color: "green" }
 ].sort((a,b)=>a.name.localeCompare(b.name));
 
+// enabled set starts with all
 let enabled = vendorDefs.filter(v => v.supported).map(v => v.name);
 const vendorPages  = Object.fromEntries(vendorDefs.map(v => [v.name, 1])); // for "More results"
 const vendorLimits = { "AliExpress": 40, "eBay": 50, "Amazon": 10 };       // soft paging hints
@@ -209,32 +198,26 @@ function buildSourcesPanel(){
   const list = $('#sourcesPanelList'); if(!list) return;
   list.innerHTML = '';
 
-  // All vendors (alphabetical)
-  vendorDefs.forEach(v=>{
+  // Build chips for each live vendor (alphabetical)
+  vendorDefs.filter(v=>v.supported).forEach(v=>{
     const id='src_'+v.slug;
     const label=document.createElement('label');
-    label.className='src-chip' + (v.supported ? '' : ' disabled');
-    label.title = v.supported ? `Include ${v.name}` : `${v.name} — coming soon`;
-    label.innerHTML=`<input type="checkbox" id="${id}" ${enabled.includes(v.name)?'checked':''} ${v.supported?'':'disabled'}/> <span>${v.name}</span>`;
+    label.className='src-chip';
+    label.innerHTML=`<input type="checkbox" id="${id}" ${enabled.includes(v.name)?'checked':''}/> <span>${v.name}</span>`;
     list.appendChild(label);
 
-    if (v.supported) {
-      const inp=label.querySelector('input');
-      const sync = ()=> label.classList.toggle('on', inp.checked);
-      sync();
+    const inp=label.querySelector('input');
+    const sync = ()=> label.classList.toggle('on', inp.checked);
+    sync();
 
-      inp.addEventListener('change', async ()=>{
-        if(inp.checked){ if(!enabled.includes(v.name)) enabled.push(v.name); }
-        else { enabled = enabled.filter(n=>n!==v.name); }
-        updateSourcesAllBox();
-        sync();
-        if (query.trim()) { vendorPages[v.name]=1; await loadVendor(v.name,{append:false,page:1}); }
-        render();
-      });
-    } else {
-      // Clicking disabled chip shows a toast and prevents toggling
-      label.addEventListener('click', (e)=>{ e.preventDefault(); toast(`${v.name} is coming soon`); });
-    }
+    inp.addEventListener('change', async ()=>{
+      if(inp.checked){ if(!enabled.includes(v.name)) enabled.push(v.name); }
+      else { enabled = enabled.filter(n=>n!==v.name); }
+      updateSourcesAllBox();
+      sync();
+      if (query.trim()) { vendorPages[v.name]=1; await loadVendor(v.name,{append:false,page:1}); }
+      render();
+    });
   });
 
   updateSourcesAllBox();
@@ -247,7 +230,7 @@ function updateSourcesAllBox(){
 }
 function setAllSources(on){
   enabled = on ? vendorDefs.filter(v=>v.supported).map(v=>v.name) : [];
-  // sync only supported chips
+  // sync each chip
   vendorDefs.filter(v=>v.supported).forEach(v=>{
     const inp = document.getElementById('src_'+v.slug);
     if (inp) { inp.checked = on; const chip = inp.closest('label'); chip?.classList.toggle('on', on); }
@@ -270,9 +253,6 @@ async function pushWatchlistToServer(){
   if(!payload.watches.length) return;
   try{ await fetch(`${WORKER_BASE}/watchlist`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)}); }catch{}
 }
-
-// Toast
-function toast(m){ const t=$('#toast'); if(!t) return; t.textContent=m; t.style.display='block'; setTimeout(()=>t.style.display='none',2600); }
 
 // ----- RENDER -----
 function render(){
@@ -517,7 +497,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     addChatMsg('user', `<div class="me-text">${txt}</div>`);
     $('#chatInput').value='';
     await assistantRespond(txt);
-  });
+  };
 
   // More results (paged fetch for each enabled vendor)
   $('#moreBtn').addEventListener('click', async ()=>{
@@ -534,7 +514,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
 
   captureReferral(); await loadRates();
 
-  // Start query
+  // Start query (tight boot)
   const startTerm=defaultQuery(); query=startTerm; const se=$('#search'); if(se) se.value=startTerm;
   Object.keys(vendorPages).forEach(k=> vendorPages[k]=1);
   await loadAll({append:false});
