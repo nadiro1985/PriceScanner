@@ -1,6 +1,7 @@
 // === CONFIG / STATE ===
 const WORKER_BASE = "https://pricescanner.b48rptrywg.workers.dev";
 const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
+
 // Neutral placeholder if an image fails to load
 const PLACEHOLDER_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="450" viewBox="0 0 600 450">
@@ -13,16 +14,19 @@ const PLACEHOLDER_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
    </svg>`
 );
 
-// Keep: Amazon, eBay, AliExpress live. Shopee, Etsy, Alibaba = coming soon
+// Live: Amazon, eBay, AliExpress
 const vendorDefs = [
-  { name: "Amazon",     slug: "amazon",     supported: true,  color: "blue" },
+  { name: "Amazon",     slug: "amazon",     supported: true,  color: "blue"  },
   { name: "eBay",       slug: "ebay",       supported: true,  color: "green" },
-  { name: "AliExpress", slug: "aliexpress", supported: true,  color: "red" },
-  { name: "Shopee",     slug: "shopee",     supported: false, comingSoon: true, color: "red" },
-  { name: "Etsy",       slug: "etsy",       supported: false, comingSoon: true, color: "green" },
-  { name: "Alibaba",    slug: "alibaba",    supported: false, comingSoon: true, color: "blue" },
+  { name: "AliExpress", slug: "aliexpress", supported: true,  color: "red"   },
+  // not shown in filter (to avoid "coming soon" copy)
+  { name: "Shopee",  slug: "shopee",  supported: false },
+  { name: "Etsy",    slug: "etsy",    supported: false },
+  { name: "Alibaba", slug: "alibaba", supported: false },
 ];
-let enabled       = vendorDefs.filter(v => v.supported).map(v => v.name);
+
+let enabled   = vendorDefs.filter(v => v.supported).map(v => v.name);
+let pagesByVendor = Object.fromEntries(enabled.map(n => [n, 1])); // pagination
 
 let currency    = "SGD";
 let sortBy      = "priceAsc";
@@ -34,6 +38,7 @@ let watches     = JSON.parse(localStorage.getItem('ps.watches')||"[]");
 let lang        = localStorage.getItem('ps.lang') || 'en';
 let theme       = localStorage.getItem('ps.theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 let lastFocusedEl = null;
+
 const offersByVendor = Object.fromEntries(vendorDefs.map(v => [v.name, []]));
 
 // i18n
@@ -82,10 +87,17 @@ function convertAmount(amount, fromCur){ const from=(fromCur||"USD").toUpperCase
 function priceInSelected(o){ return convertAmount(o.price, o.currency||"USD"); }
 function estimateShipDays(vendor,country){
   const fast = new Set(["eBay","Amazon"]);
-  const intl = new Set(["AliExpress","Shopee","Etsy","Alibaba"]);
+  const intl = new Set(["AliExpress"]);
   if (fast.has(vendor)) return (["SG","US","GB"].includes(country))?3:7;
   if (intl.has(vendor)) return (country==="SG")?7:14;
   return 10;
+}
+
+// Budget helpers
+function getBudget(){
+  const mn = parseFloat($('#minPrice')?.value || '');
+  const mx = parseFloat($('#maxPrice')?.value || '');
+  return { min: Number.isFinite(mn) ? mn : null, max: Number.isFinite(mx) ? mx : null };
 }
 
 // build /out wrapper URL for clicks
@@ -125,20 +137,20 @@ async function enrichAliDetails(items){
   return items.map(o => map.get(String(o.id)) || o);
 }
 
-// loaders
-async function loadVendor(vendor){
-  const def = vendorDefs.find(v => v.name === vendor); if (!def) return;
-  offersByVendor[vendor] = [];
-  if (!def.supported) { console.info(`[${vendor}] coming soon; skipping network call.`); return; }
+// loaders (now with paging)
+async function loadVendor(vendor, page = 1, append = false){
+  const def = vendorDefs.find(v => v.name === vendor); if (!def) return 0;
+  if (!def.supported) return 0;
+  const term=(query||"").trim(); if(!enabled.includes(vendor)||!WORKER_BASE||!term) return 0;
 
-  const term=(query||"").trim(); if(!enabled.includes(vendor)||!WORKER_BASE||!term) return;
   try{
     const url = new URL(`${WORKER_BASE}/search/${def.slug}`);
     url.searchParams.set("q", term);
+    url.searchParams.set("page", String(page));  // Worker supports this
     if (DEBUG) url.searchParams.set("debug","1");
     const r=await fetch(url.toString(),{mode:"cors",cache:"no-store"});
     const d=await r.json().catch(()=>({results:[]}));
-    if(!r.ok){ console.warn(`${vendor} search error`, r.status, d); return; }
+    if(!r.ok){ console.warn(`${vendor} search error`, r.status, d); return 0; }
     if (d.error) console.warn(`${vendor} search error:`, d.error);
     if (d.note)  console.info(`${vendor} search note:`, d.note);
 
@@ -151,17 +163,30 @@ async function loadVendor(vendor){
 
     if (vendor === "AliExpress" && arr.length) arr = await enrichAliDetails(arr);
 
-    offersByVendor[vendor] = arr;
-    console.log(`[${vendor}] loaded:`, arr.length, 'items for', term);
-    if (!arr.length) console.info(`${vendor}: 0 results for query:`, term);
-  }catch(e){ console.warn(`${vendor} search fetch failed:`,e); }
+    if (append) {
+      const prev = offersByVendor[vendor] || [];
+      // de-dup by id or (title+vendor)
+      const seen = new Set(prev.map(x => x.id || ((x.title||'')+'|'+x.vendor).toLowerCase()));
+      const more = arr.filter(x => { const k=(x.id||((x.title||'')+'|'+x.vendor)).toString().toLowerCase(); if(seen.has(k)) return false; seen.add(k); return true; });
+      offersByVendor[vendor] = prev.concat(more);
+    } else {
+      offersByVendor[vendor] = arr;
+    }
+    console.log(`[${vendor}] page ${page} loaded:`, arr.length, 'items for', term);
+    return arr.length;
+  }catch(e){ console.warn(`${vendor} search fetch failed:`,e); return 0; }
 }
 
 function currentResults(){
   let base = [];
-  for (const v of vendorDefs.map(v=>v.name)) {
+  for (const v of vendorDefs.filter(v=>v.supported).map(v=>v.name)) {
     if (enabled.includes(v)) base = base.concat(offersByVendor[v]||[]);
   }
+  // Budget
+  const {min,max} = getBudget();
+  if (min!=null) base = base.filter(o => priceInSelected(o) >= min);
+  if (max!=null) base = base.filter(o => priceInSelected(o) <= max);
+
   if (maxShipDays) base = base.filter(o => (o.shipDays||estimateShipDays(o.vendor,userCountry)) <= Number(maxShipDays));
   if (sortBy==='priceAsc')  base.sort((a,b)=> priceInSelected(a) - priceInSelected(b));
   if (sortBy==='priceDesc') base.sort((a,b)=> priceInSelected(b) - priceInSelected(a));
@@ -188,6 +213,54 @@ function vendorColorStyle(name){
   if (v.color==='green')return 'var(--brand-green)';
   return 'var(--accent-1)';
 }
+
+// ---- Sources dropdown ----
+function buildSourceMenu(){
+  const menu = $('#sourceMenu'); if (!menu) return;
+  const supported = vendorDefs.filter(v=>v.supported).map(v=>v.name).sort((a,b)=>a.localeCompare(b));
+  let html = `<label class="check"><input type="checkbox" id="srcAll"> <span>All</span></label><div class="divider"></div>`;
+  for (const name of supported){
+    const id = 'src_' + name.toLowerCase().replace(/\s+/g,'_');
+    html += `<label class="check"><input type="checkbox" id="${id}" data-name="${name}"> <span>${name}</span></label>`;
+  }
+  menu.innerHTML = html;
+
+  const btn = $('#sourceBtn');
+  function updateBtn(){
+    if (enabled.length===supported.length || enabled.length===0) btn.textContent='All sources';
+    else btn.textContent = `${enabled.length} selected`;
+  }
+  $('#srcAll').checked = enabled.length===supported.length;
+  for (const name of supported){
+    const id = '#src_' + name.toLowerCase().replace(/\s+/g,'_');
+    const cb = $(id);
+    cb.checked = enabled.includes(name);
+    cb.onchange = ()=>{
+      if(cb.checked) enabled = Array.from(new Set([...enabled, name]));
+      else enabled = enabled.filter(n=>n!==name);
+      $('#srcAll').checked = enabled.length===supported.length;
+      updateBtn(); render();
+    };
+  }
+  $('#srcAll').onchange = (e)=>{
+    enabled = e.target.checked ? supported.slice() : [];
+    for (const name of supported){ const cb = $('#src_' + name.toLowerCase().replace(/\s+/g,'_')); if(cb) cb.checked = e.target.checked; }
+    updateBtn(); render();
+  };
+  updateBtn();
+}
+function toggleSourceMenu(show){
+  const m = $('#sourceMenu'); const b = $('#sourceBtn');
+  if (!m || !b) return;
+  if (show==null) show = m.hidden;
+  m.hidden = !show; b.setAttribute('aria-expanded', String(show));
+}
+document.addEventListener('click', (e)=>{
+  const m=$('#sourceMenu'); const b=$('#sourceBtn');
+  if(!m || !b) return;
+  if (b.contains(e.target)) { toggleSourceMenu(); return; }
+  if (!m.contains(e.target)) { m.hidden = true; b.setAttribute('aria-expanded','false'); }
+});
 
 // signup modal
 function initSignupUI(){
@@ -221,8 +294,8 @@ function initSignupUI(){
   if(!openBtn||!modal) return;
   openBtn.onclick=openModal;
   if(closeBtn) closeBtn.onclick=closeModal;
-  modal.addEventListener('click', (e)=>{ if(e.target===modal) closeModal(); });
-  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && modal.style.display==='flex') closeModal(); });
+  modal?.addEventListener('click', (e)=>{ if(e.target===modal) closeModal(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && modal?.style.display==='flex') closeModal(); });
 
   if(sendBtn) sendBtn.onclick=async()=>{
     const email=(emailEl?.value||'').trim().toLowerCase();
@@ -263,26 +336,6 @@ async function pushWatchlistToServer(){
 function render(){
   renderLabels();
 
-  // Sources badges
-  const srcWrap = $('#sources'); srcWrap.innerHTML='';
-  vendorDefs.forEach(v=>{
-    const on=enabled.includes(v.name);
-    const b=document.createElement('button');
-    b.className='badge';
-    b.style.borderColor = vendorColorStyle(v.name);
-    b.style.background = on ? 'var(--badge-on)' : 'var(--badge-off)';
-    b.style.opacity = v.supported ? '1' : '.6';
-    b.title = v.supported ? (on ? 'Click to disable' : 'Click to enable') : 'Coming soon';
-    b.textContent=(on?'✔ ':'✖ ')+v.name + (v.supported ? '' : ' (soon)');
-    if (v.supported) {
-      b.onclick=()=>{ enabled=on?enabled.filter(x=>x!==v.name):[...enabled,v.name]; render(); };
-    } else {
-      b.disabled = true;
-      b.style.cursor = 'not-allowed';
-    }
-    srcWrap.appendChild(b);
-  });
-
   // Results grid
   const data = currentResults();
   const grid = $('#grid'); grid.innerHTML='';
@@ -294,7 +347,7 @@ function render(){
     card.className='card card-hover';
     card.innerHTML = `
       <div class="media">
-        <img loading="lazy" src="${item.image}" alt="${item.title} product image"/>
+        <img loading="lazy" src="${item.image||PLACEHOLDER_IMG}" alt="${item.title} product image"/>
       </div>
       <div class="cardBody">
         <h3 class="title clamp-2">${item.title}</h3>
@@ -316,30 +369,10 @@ function render(){
           <button class="btn watchBtn">Watch</button>
         </div>
       </div>`;
+    const img = card.querySelector('img');
+    img.onerror = ()=>{ img.src = PLACEHOLDER_IMG; img.onerror=null; };
     card.querySelector('.watchBtn').onclick = ()=> addWatch(item);
     grid.appendChild(card);
-  });
-
-  // Watchlist
-  const list = $('#watchlist'); list.innerHTML = watches.length ? '' : '<div class="muted">No watched items yet.</div>';
-  watches.forEach(w=>{
-    const row=document.createElement('div'); row.className='card thinBorder';
-    row.innerHTML = `
-      <div class="pad-sm">
-        <div class="wlTitle">${w.title}</div>
-        <div class="wlMeta">Baseline: ${w.baseline??'—'} • Last: ${w.last??'—'} • ${w.triggered?'Triggered':'Waiting'}</div>
-        <div class="row gap wrap">
-          <input type="number" class="input discount" placeholder="Discount % from baseline" value="${w.discountPct??''}"/>
-          <label class="inline"><input type="checkbox" class="emailOpt"${w.emailOpt?' checked':''}/> email alerts</label>
-          <button class="btn resetBase">Reset baseline</button>
-          <button class="btn remove">Remove</button>
-        </div>
-      </div>`;
-    row.querySelector('.discount').oninput = async (e)=>{ w.discountPct=Number(e.target.value); saveWatches(); await pushWatchlistToServer(); };
-    row.querySelector('.emailOpt').onchange = async (e)=>{ w.emailOpt=e.target.checked; saveWatches(); await pushWatchlistToServer(); };
-    row.querySelector('.resetBase').onclick = ()=>{ delete w.baseline; saveWatches(); render(); };
-    row.querySelector('.remove').onclick = ()=>{ watches=watches.filter(x=>x!==w); saveWatches(); render(); };
-    list.appendChild(row);
   });
 }
 
@@ -390,7 +423,8 @@ async function searchByPhoto(file){
     const qText = labels.join(' ');
     const input=$('#search'); if (input){ input.value = qText; }
     query = qText; localStorage.setItem('ps.lastQuery',query);
-    const tasks = vendorDefs.filter(v=>v.supported).map(v => loadVendor(v.name));
+    pagesByVendor = Object.fromEntries(vendorDefs.filter(v=>v.supported).map(v=>[v.name,1]));
+    const tasks = vendorDefs.filter(v=>v.supported).map(v => loadVendor(v.name, 1, false));
     await Promise.all(tasks);
     render();
     URL.revokeObjectURL(img.src);
@@ -400,7 +434,7 @@ async function searchByPhoto(file){
   }
 }
 
-// Chat assistant
+// Chat assistant → update main results
 function openChat(){ $('#chatPanel').hidden=false; $('#chatInput')?.focus(); }
 function closeChat(){ $('#chatPanel').hidden=true; }
 function addChatMsg(role, html){
@@ -413,9 +447,9 @@ function addChatMsg(role, html){
 }
 function parseIntent(text){
   const msg = String(text||'').toLowerCase();
-  const vendors = vendorDefs.map(v=>v.name.toLowerCase());
-  const requested = vendors.filter(v => msg.includes(v.toLowerCase()));
-  const useVendors = requested.length ? requested : vendorDefs.filter(v=>v.supported).map(v=>v.name.toLowerCase());
+  const vendors = vendorDefs.filter(v=>v.supported).map(v=>v.name.toLowerCase());
+  const requested = vendors.filter(v => msg.includes(v));
+  const useVendors = (requested.length ? requested : vendors).map(v=>v.toLowerCase());
   let min=null, max=null;
   const m1 = msg.match(/\$?\s*(\d+)\s*[-to]\s*\$?\s*(\d+)/); if(m1){ min=+m1[1]; max=+m1[2]; }
   const m2 = msg.match(/(?:under|below|less than)\s*\$?\s*(\d+)/); if(m2){ max=+m2[1]; }
@@ -427,49 +461,25 @@ function parseIntent(text){
   cleaned = cleaned.replace(/\s+/g,' ').trim();
   return { query: cleaned || msg, vendors: useVendors, min, max };
 }
-async function searchWorker(slug, q){
-  const url = new URL(`${WORKER_BASE}/search/${slug}`);
-  url.searchParams.set("q", q);
-  if (DEBUG) url.searchParams.set("debug","1");
-  const r = await fetch(url.toString(), { mode:"cors", cache:"no-store" });
-  if (!r.ok) return [];
-  const d = await r.json().catch(()=>({results:[]}));
-  return Array.isArray(d.results) ? d.results : [];
-}
-function withinRange(item, min, max){
-  const p = priceInSelected(item);
-  if (min!=null && p < min) return false;
-  if (max!=null && p > max) return false;
-  return true;
-}
-function resultCard(item){
-  const p = fmt(priceInSelected(item));
-  return `
-    <div class="chat-card">
-      <img src="${item.image}" alt="${item.title}" />
-      <div class="cc-body">
-        <div class="cc-title">${item.title}</div>
-        <div class="cc-meta"><span class="badge vendor" data-vendor="${item.vendor}">${item.vendor}</span> <b>${p}</b></div>
-        <a class="btn btn-mini" href="${outUrl(item)}" target="_blank" rel="sponsored nofollow noopener">View</a>
-      </div>
-    </div>`;
-}
 async function assistantRespond(userText){
   const intent = parseIntent(userText);
-  addChatMsg('bot', `<div class="bot-text">Let me look for <b>${intent.query}</b>${intent.min||intent.max?` in your price range${intent.min?` ≥ ${fmt(intent.min)}`:''}${intent.max?` ≤ ${fmt(intent.max)}`:''}:`:'...'}</div>`);
-  const live = vendorDefs.filter(v=>v.supported && intent.vendors.includes(v.name.toLowerCase()));
-  const queries = live.map(v => searchWorker(v.slug, intent.query));
-  const resultsByVendor = await Promise.all(queries);
-  let pool = [];
-  resultsByVendor.forEach((arr, i) => {
-    const vendorName = live[i].name;
-    (arr||[]).forEach(o => pool.push({ ...o, vendor: vendorName }));
-  });
-  if (intent.min!=null || intent.max!=null){ pool = pool.filter(o => withinRange(o, intent.min, intent.max)); }
-  pool.sort((a,b) => priceInSelected(a) - priceInSelected(b) || (b.rating||0)-(a.rating||0));
-  if (!pool.length){ addChatMsg('bot', `<div class="bot-text">I couldn’t find great matches. Try adding brand/model keywords or widening your price range.</div>`); return; }
-  const top = pool.slice(0,3).map(resultCard).join('');
-  addChatMsg('bot', `<div class="chat-cards">${top}</div>`);
+  addChatMsg('bot', `<div class="bot-text">Looking for <b>${intent.query}</b>${intent.min||intent.max?` with your budget${intent.min?` ≥ ${fmt(intent.min)}`:''}${intent.max?` ≤ ${fmt(intent.max)}`:''}…`:''}</div>`);
+
+  // apply intent → main UI
+  enabled = vendorDefs.filter(v=>v.supported && intent.vendors.includes(v.name.toLowerCase())).map(v=>v.name);
+  if (!enabled.length) enabled = vendorDefs.filter(v=>v.supported).map(v=>v.name);
+  $('#search').value = intent.query;
+  query = intent.query; localStorage.setItem('ps.lastQuery', query);
+
+  if (intent.min!=null) $('#minPrice').value = intent.min;
+  if (intent.max!=null) $('#maxPrice').value = intent.max;
+
+  // reset paging and load
+  pagesByVendor = Object.fromEntries(enabled.map(v=>[v,1]));
+  const tasks = enabled.map(v => loadVendor(v, 1, false));
+  await Promise.all(tasks);
+  render();
+  addChatMsg('bot', `<div class="bot-text">Updated results are shown below.</div>`);
 }
 
 // personalization
@@ -480,14 +490,21 @@ function defaultQuery(){ const urlQ = new URLSearchParams(location.search).get('
 let debounce;
 window.addEventListener('DOMContentLoaded', async ()=>{
   $('#themeToggle')?.addEventListener('click', ()=> applyTheme( (localStorage.getItem('ps.theme')==='dark') ? 'light' : 'dark' ));
+
+  buildSourceMenu();
+  $('#sourceBtn')?.addEventListener('click', ()=> toggleSourceMenu());
+
   const selLang=$('#lang'); if(selLang){ selLang.value=lang; selLang.onchange=()=>{ lang=selLang.value; localStorage.setItem('ps.lang',lang); render(); } }
   $('#currency').onchange=(e)=>{ currency=e.target.value; render(); }
   $('#sort').onchange=(e)=>{ sortBy=e.target.value; render(); }
   $('#shipMax').onchange=(e)=>{ maxShipDays=e.target.value; render(); }
+  $('#minPrice').oninput = ()=> render();
+  $('#maxPrice').oninput = ()=> render();
 
   $('#search').oninput=(e)=>{ query=e.target.value; localStorage.setItem('ps.lastQuery',query);
     clearTimeout(debounce); debounce=setTimeout(async()=>{
-      const tasks = vendorDefs.filter(v=>v.supported).map(v => loadVendor(v.name));
+      pagesByVendor = Object.fromEntries(enabled.map(v=>[v,1]));
+      const tasks = enabled.map(v => loadVendor(v, 1, false));
       await Promise.all(tasks);
       render();
     },250); };
@@ -509,13 +526,23 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     await assistantRespond(txt);
   };
 
+  // More results
+  $('#moreBtn').onclick = async ()=>{
+    const tasks = enabled.map(v => {
+      pagesByVendor[v] = (pagesByVendor[v]||1) + 1;
+      return loadVendor(v, pagesByVendor[v], true);
+    });
+    await Promise.all(tasks);
+    render();
+  };
+
   $('#refreshBtn').onclick=refreshWatches;
 
   initSignupUI(); captureReferral(); await loadRates();
 
   const startTerm=defaultQuery(); query=startTerm; const se=$('#search'); if(se) se.value=startTerm;
 
-  const tasks = vendorDefs.filter(v=>v.supported).map(v => loadVendor(v.name));
+  const tasks = enabled.map(v => loadVendor(v, 1, false));
   await Promise.all(tasks);
   render();
 });
