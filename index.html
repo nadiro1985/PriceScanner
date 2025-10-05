@@ -3,17 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>PriceScanner — Compare Amazon, eBay & AliExpress (Image Search + Assistant)</title>
-  <meta name="description" content="PriceScanner compares prices across Amazon, eBay and AliExpress. Try image search or ask the shopping assistant to describe what you need — get the best deal fast.">
+  <title>PriceScanner — Compare prices from trusted marketplaces</title>
+  <meta name="description" content="One secure search across trusted marketplaces worldwide. Real sellers, buyer protection and transparent pricing.">
   <meta name="theme-color" content="#146EB4">
-  <!-- cache‑busted favicon -->
-  <link rel="icon" href="logo.svg?v=5">
-  <link rel="mask-icon" href="logo.svg?v=5" color="#146EB4">
-  <link rel="stylesheet" href="styles.css?v=46">
+  <link rel="icon" href="logo.svg?v=6">
+  <link rel="mask-icon" href="logo.svg?v=6" color="#146EB4">
+  <link rel="stylesheet" href="styles.css?v=47">
 
   <link rel="canonical" href="https://nadiro1985.github.io/PriceScanner/">
-  <meta property="og:title" content="PriceScanner — Compare Amazon, eBay & AliExpress">
-  <meta property="og:description" content="Search once, compare everywhere. Image search + shopping assistant. Amazon, eBay, AliExpress. Shopee, Etsy & Alibaba coming soon.">
+  <meta property="og:title" content="PriceScanner — Compare prices from trusted marketplaces">
+  <meta property="og:description" content="One secure search across trusted marketplaces worldwide. Real sellers, buyer protection and transparent pricing.">
   <meta property="og:type" content="website">
   <meta property="og:image" content="og-1200x630.png">
   <meta property="og:image:width" content="1200">
@@ -47,21 +46,12 @@
 </head>
 <body>
   <div class="container pad">
-    <div class="heroWrap">
-      <video autoplay muted loop playsinline preload="none" poster="hero-poster.jpg" src="hero.mp4"></video>
-
-      <!-- Simple ambient motion -->
-      <div class="motionLayer" aria-hidden="true">
-        <div class="floatIcon cart">🛒</div>
-        <div class="floatIcon tag">🏷️</div>
-        <div class="floatIcon box">📦</div>
-      </div>
-
+    <header class="heroWrap">
+      <!-- Clean gradient hero (no video / no floating icons) -->
       <div class="heroContent">
         <div class="topBar">
           <div class="logoWrap">
-            <!-- bigger logo + cache-bust -->
-            <img id="brandLogo" class="brandLogo" src="logo.svg?v=5" alt="PriceScanner logo" width="48" height="48">
+            <img id="brandLogo" class="brandLogo" src="logo.svg?v=6" alt="PriceScanner" width="56" height="56">
             <div id="brandName" class="logoText">PriceScanner</div>
           </div>
 
@@ -69,7 +59,7 @@
 
           <div class="topControls">
             <button id="themeToggle" class="btn-icon" type="button" title="Toggle dark mode" aria-label="Toggle dark mode">🌙</button>
-            <button id="openSignup" class="btn-sm" type="button" title="Sign in / Sign up for alerts">Sign in</button>
+            <button id="openSignup" class="btn btn-blue" type="button" title="Sign in / Sign up">Sign in</button>
 
             <label id="lblLang" class="sr-only" for="lang">Language</label>
             <select id="lang" class="select small" aria-labelledby="lblLang">
@@ -86,17 +76,24 @@
 
         <h1 id="tagline" class="heroTitle">Find the best price, fast</h1>
         <p class="heroSub">
-          One search to compare trusted platforms. Try <b>image search</b> or ask our <b>shopping assistant</b> to describe what you need.
+          One secure search across trusted marketplaces. Real sellers, buyer protection and transparent pricing.
         </p>
 
         <form class="row searchBar" onsubmit="return false" role="search" aria-label="Product search">
           <input id="search" class="input" placeholder="Search products…" style="flex:1 1 auto" aria-label="Search products">
           <input id="photoInput" type="file" accept="image/*" capture="environment" hidden>
           <button id="photoBtn" class="btn" type="button" title="Search by photo" aria-label="Search by photo">📷 Photo</button>
+          <!-- Red as AliExpress style -->
           <button id="searchBtn" class="btn btn-primary" type="button">Search</button>
         </form>
 
         <div class="row controlsRow">
+          <!-- Sources dropdown -->
+          <div class="sourceFilter">
+            <button id="sourceBtn" class="dropdown-btn" aria-haspopup="true" aria-expanded="false">All sources</button>
+            <div id="sourceMenu" class="dropdown-menu" role="menu" hidden></div>
+          </div>
+
           <label for="sort" class="controlLabel" id="lblSort">Sort by</label>
           <select id="sort" class="select" aria-labelledby="lblSort">
             <option value="priceAsc">Price: Low to High</option>
@@ -112,30 +109,57 @@
             <option value="14">≤ 14</option>
             <option value="21">≤ 21</option>
           </select>
+
+          <!-- Budget -->
+          <div class="budget">
+            <label class="controlLabel">Budget</label>
+            <input id="minPrice" class="input small" type="number" inputmode="decimal" placeholder="Min">
+            <span class="dash">–</span>
+            <input id="maxPrice" class="input small" type="number" inputmode="decimal" placeholder="Max">
+          </div>
         </div>
 
         <div class="trustRow">
-          <span class="smallNote">Trusted platforms:</span>
-          <span class="trustBadge trust-amazon">Amazon</span>
-          <span class="trustBadge trust-ebay">eBay</span>
-          <span class="trustBadge trust-aliexpress">AliExpress</span>
-          <span class="trustBadge trust-shopee">Shopee <em>— coming soon</em></span>
-          <span class="trustBadge trust-etsy">Etsy <em>— coming soon</em></span>
-          <span class="trustBadge trust-alibaba">Alibaba <em>— coming soon</em></span>
-          <span class="smallNote">More platforms are coming soon.</span>
+          <span class="smallNote">Trusted marketplaces include:</span>
+          <span class="trustBadge">Amazon</span>
+          <span class="trustBadge">eBay</span>
+          <span class="trustBadge">AliExpress</span>
+          <span class="trustBadge">Walmart</span>
+          <span class="trustBadge">Target</span>
+          <span class="trustBadge">Best Buy</span>
+          <span class="trustBadge">Etsy</span>
+          <span class="trustBadge">Shopee</span>
+          <span class="trustBadge">Lazada</span>
+          <span class="trustBadge">Alibaba</span>
+          <span class="trustBadge">Mercado&nbsp;Libre</span>
+          <span class="trustBadge">Rakuten</span>
+          <span class="trustBadge">Flipkart</span>
+          <span class="trustBadge">JD.com</span>
+          <span class="trustBadge">Bol.com</span>
+          <span class="trustBadge">Cdiscount</span>
+          <span class="trustBadge">Argos</span>
+          <span class="trustBadge">MediaMarkt</span>
+          <span class="trustBadge">B&amp;H</span>
+          <span class="trustBadge">Newegg</span>
+          <span class="trustBadge">Carrefour</span>
+          <span class="trustBadge">Costco</span>
+          <span class="trustBadge">Noon</span>
+          <span class="trustBadge">Takealot</span>
+          <span class="trustBadge">Jumia</span>
+          <span class="trustBadge">…and others</span>
         </div>
       </div>
-    </div>
+    </header>
 
     <div class="row" style="align-items:center; margin-top:16px">
       <div style="flex:1 1 600px">
-        <div class="sourcesTitle" id="lblSources">Sources (click to include/exclude):</div>
-        <div id="sources" class="row sourcesRow"></div>
+        <div class="sourcesTitle" id="lblSources">Sources</div>
+        <!-- The dropdown above replaces the old badges -->
       </div>
       <aside class="card sidebar">
         <div class="pad-sm">
           <div class="sidebarTitle" id="lblWatchlist">Watchlist</div>
-          <button id="refreshBtn" class="btn" style="margin:10px 0">Refresh</button>
+          <button id="refreshBtn" class="btn btn-blue" style="margin:10px 0">Refresh</button>
           <div id="watchlist" class="watchlist"></div>
         </div>
       </aside>
@@ -144,20 +168,16 @@
 
   <section class="container pad-b">
     <div id="grid" class="grid"></div>
+    <div id="moreWrap" class="moreWrap">
+      <button id="moreBtn" class="btn btn-primary" type="button">More results</button>
+    </div>
   </section>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <section class="container pad-b">
-    <div class="appBadges">
-      <a class="btn" href="#" aria-label="Google Play (coming soon)">Google Play (coming soon)</a>
-      <a class="btn" href="#" aria-label="App Store (coming soon)">App Store (coming soon)</a>
-    </div>
-  </section>
-
   <footer class="footer">
     <div class="container footerInner">
-      <div>© <span id="year"></span> <span id="brandFooter">PriceScanner</span> • 6 platforms (3 live, 3 coming soon)</div>
+      <div>© <span id="year"></span> <span id="brandFooter">PriceScanner</span></div>
       <div class="footerLinks">
         <a href="admin.html">Admin</a>
         <a href="privacy.html" rel="nofollow">Privacy</a>
@@ -176,7 +196,7 @@
     </div>
     <div id="chatMessages" class="chat-messages"></div>
     <form id="chatForm" class="chat-form" onsubmit="return false">
-      <input id="chatInput" class="input chat-input" placeholder="Describe your ideal product (e.g., 'wireless headphones under $50 for running')" aria-label="Describe your product">
+      <input id="chatInput" class="input chat-input" placeholder="Describe what you need (e.g., 'noise-cancelling headphones under $100')" aria-label="Describe your product">
       <button id="chatSend" class="btn btn-primary" type="submit">Send</button>
     </form>
   </div>
@@ -191,6 +211,6 @@
     });
   </script>
 
-  <script defer src="script.js?v=46"></script>
+  <script defer src="script.js?v=47"></script>
 </body>
 </html>
