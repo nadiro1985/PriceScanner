@@ -12,20 +12,23 @@
   <meta name="theme-color" content="#146EB4">
   <link rel="canonical" href="https://www.thepricescanner.com/">
   <link rel="alternate" hreflang="x-default" href="https://www.thepricescanner.com/">
+
+  <!-- Icons & styles -->
   <link rel="icon" href="logo.svg?v=12">
   <link rel="mask-icon" href="logo.svg?v=12" color="#146EB4">
   <!-- bump these numbers any time to hard-refresh -->
   <link rel="stylesheet" href="styles.css?v=61">
-<!-- PWA: manifest + iOS meta -->
-<link rel="manifest" href="/manifest.webmanifest">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="PriceScanner">
-<link rel="apple-touch-icon" href="/icons/icon-180.png">
+
+  <!-- PWA: manifest + iOS meta -->
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="PriceScanner">
+  <link rel="apple-touch-icon" href="/icons/icon-180.png">
 
   <!-- Open Graph / Facebook -->
   <meta property="og:title" content="PriceScanner — Compare Prices Across Top Stores">
-  <meta property="og:description" content="One search across trusted stores. Clear prices, strong buyer protection and secure checkout.">
+  <meta property="og:description" content="One search across trusted stores. Clear prices, strong buyer protection and secure checkout">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://www.thepricescanner.com/">
   <meta property="og:site_name" content="PriceScanner">
@@ -36,30 +39,30 @@
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="PriceScanner — Compare Prices Across Top Stores">
-  <meta name="twitter:description" content="One search across trusted stores. Clear prices, strong buyer protection and secure checkout.">
+  <meta name="twitter:description" content="One search across trusted stores. Clear prices, strong buyer protection and secure checkout">
   <meta name="twitter:image" content="https://www.thepricescanner.com/og-1200x630.png">
 
   <!-- Structured Data: WebSite + Organization -->
   <script type="application/ld+json">
   {
-    "@context":"https://schema.org",
-    "@type":"WebSite",
-    "name":"PriceScanner",
-    "url":"https://www.thepricescanner.com/",
-    "potentialAction":{
-      "@type":"SearchAction",
-      "target":"https://www.thepricescanner.com/?q={search_term_string}",
-      "query-input":"required name=search_term_string"
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "PriceScanner",
+    "url": "https://www.thepricescanner.com/",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://www.thepricescanner.com/?q={search_term_string}",
+      "query-input": "required name=search_term_string"
     }
   }
   </script>
   <script type="application/ld+json">
   {
-    "@context":"https://schema.org",
-    "@type":"Organization",
-    "name":"PriceScanner",
-    "url":"https://www.thepricescanner.com/",
-    "logo":"https://www.thepricescanner.com/logo.svg"
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "PriceScanner",
+    "url": "https://www.thepricescanner.com/",
+    "logo": "https://www.thepricescanner.com/logo.svg"
   }
   </script>
 
@@ -266,28 +269,6 @@
     </div>
   </div>
 
-  <!-- Signup / Verify Modal -->
-  <div id="signupModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); align-items:center; justify-content:center;"
-       role="dialog" aria-modal="true" aria-labelledby="suTitle">
-    <div style="background:#fff; padding:16px; border-radius:12px; width:90%; max-width:420px">
-      <h3 id="suTitle" style="margin:0 0 8px 0; font-weight:800;color:#146EB4">Create your account</h3>
-      <p id="signupStep1">
-        <label for="suEmail">Email</label><br>
-        <input id="suEmail" class="input" placeholder="you@example.com" autocomplete="email">
-        <button id="suSend" class="btn btn-primary" style="margin-top:8px">Send code</button>
-      </p>
-      <p id="signupStep2" style="display:none">
-        <label for="suCode">Verification code</label><br>
-        <input id="suCode" class="input" placeholder="6-digit code" inputmode="numeric" maxlength="6">
-        <button id="suVerify" class="btn btn-primary" style="margin-top:8px">Verify</button>
-      </p>
-      <p id="signupMsg" style="color:#64748b; font-size:13px; margin-top:8px"></p>
-      <div style="margin-top:12px; display:flex; gap:8px; justify-content:flex-end">
-        <button id="suClose" class="btn">Close</button>
-      </div>
-    </div>
-  </div>
-
   <script>
     // Footer year and brand
     document.getElementById('year').textContent = new Date().getFullYear();
@@ -315,6 +296,15 @@
       location.replace(u.toString());
     }
     document.getElementById('forceUpdate')?.addEventListener('click', forceUpdate);
+  </script>
+
+  <!-- PWA: register service worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      });
+    }
   </script>
 
   <!-- IMPORTANT: keep script.js a JS file (not HTML). Cache-busted version below. -->
