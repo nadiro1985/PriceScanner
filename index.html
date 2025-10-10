@@ -182,7 +182,8 @@
 
         <form class="row searchBar" onsubmit="return false" role="search" aria-label="Product search">
           <input id="search" class="input" placeholder="Search products…" style="flex:1 1 auto" aria-label="Search products">
-          <input id="photoInput" type="file" accept="image/*" capture="environment" hidden>
+          <!-- NOTE: remove capture here; we toggle it dynamically -->
+          <input id="photoInput" type="file" accept="image/*" hidden>
           <button id="photoBtn" class="btn" type="button" title="Search by photo" aria-label="Search by photo">📷 Photo</button>
           <button id="searchBtn" class="btn btn-primary" type="button">Search</button>
         </form>
@@ -269,6 +270,41 @@
     </div>
   </div>
 
+  <!-- Photo source choice (new) -->
+  <div id="photoChoice" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:80; align-items:center; justify-content:center;" role="dialog" aria-modal="true" aria-labelledby="pcTitle">
+    <div style="background:#fff; padding:16px; border-radius:12px; width:90%; max-width:420px">
+      <h3 id="pcTitle" style="margin:0 0 8px 0; font-weight:800; color:#146EB4">Use a photo</h3>
+      <p style="margin:0 0 12px 0; color:#334155">Choose how you want to add your photo.</p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap">
+        <button id="pcTake" class="btn btn-primary" type="button">Take photo</button>
+        <button id="pcUpload" class="btn" type="button">Upload from device</button>
+        <button id="pcClose" class="btn" type="button" style="margin-left:auto">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Signup / Verify Modal -->
+  <div id="signupModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); align-items:center; justify-content:center;"
+       role="dialog" aria-modal="true" aria-labelledby="suTitle">
+    <div style="background:#fff; padding:16px; border-radius:12px; width:90%; max-width:420px">
+      <h3 id="suTitle" style="margin:0 0 8px 0; font-weight:800;color:#146EB4">Create your account</h3>
+      <p id="signupStep1">
+        <label for="suEmail">Email</label><br>
+        <input id="suEmail" class="input" placeholder="you@example.com" autocomplete="email">
+        <button id="suSend" class="btn btn-primary" style="margin-top:8px">Send code</button>
+      </p>
+      <p id="signupStep2" style="display:none">
+        <label for="suCode">Verification code</label><br>
+        <input id="suCode" class="input" placeholder="6-digit code" inputmode="numeric" maxlength="6">
+        <button id="suVerify" class="btn btn-primary" style="margin-top:8px">Verify</button>
+      </p>
+      <p id="signupMsg" style="color:#64748b; font-size:13px; margin-top:8px"></p>
+      <div style="margin-top:12px; display:flex; gap:8px; justify-content:flex-end">
+        <button id="suClose" class="btn">Close</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // Footer year and brand
     document.getElementById('year').textContent = new Date().getFullYear();
@@ -296,6 +332,62 @@
       location.replace(u.toString());
     }
     document.getElementById('forceUpdate')?.addEventListener('click', forceUpdate);
+
+    // ---- Photo source chooser + auto-run search ----
+    (function(){
+      const photoBtn = document.getElementById('photoBtn');
+      const photoInput = document.getElementById('photoInput');
+      const pc = document.getElementById('photoChoice');
+      const pcTake = document.getElementById('pcTake');
+      const pcUpload = document.getElementById('pcUpload');
+      const pcClose = document.getElementById('pcClose');
+
+      function openPhotoChoice(){ pc.style.display = 'flex'; }
+      function closePhotoChoice(){ pc.style.display = 'none'; }
+
+      photoBtn?.addEventListener('click', openPhotoChoice);
+      pcClose?.addEventListener('click', closePhotoChoice);
+      pc?.addEventListener('click', (e)=>{ if(e.target === pc) closePhotoChoice(); });
+      document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closePhotoChoice(); });
+
+      // Take photo -> force camera by adding capture
+      pcTake?.addEventListener('click', function(){
+        if (!photoInput) return;
+        photoInput.setAttribute('capture', 'environment');
+        photoInput.setAttribute('accept', 'image/*');
+        closePhotoChoice();
+        photoInput.click();
+      });
+
+      // Upload from device -> ensure capture is off
+      pcUpload?.addEventListener('click', function(){
+        if (!photoInput) return;
+        photoInput.removeAttribute('capture');
+        photoInput.setAttribute('accept', 'image/*');
+        closePhotoChoice();
+        photoInput.click();
+      });
+
+      // Auto-run search when a file is selected
+      photoInput?.addEventListener('change', function(){
+        const file = photoInput.files && photoInput.files[0];
+        if (!file) return;
+
+        // Reset capture so next time we always show the choice first
+        photoInput.removeAttribute('capture');
+
+        // If your app exposes a handler, call it
+        if (typeof window.startPhotoSearch === 'function') {
+          try { window.startPhotoSearch(file); } catch(e){}
+        }
+
+        // Also broadcast a custom event other scripts can listen for
+        try {
+          document.dispatchEvent(new CustomEvent('ps:photo-selected', { detail: { file } }));
+        } catch(e){}
+        // If your script.js already listens to #photoInput change, it has fired too.
+      });
+    })();
   </script>
 
   <!-- PWA: register service worker -->
