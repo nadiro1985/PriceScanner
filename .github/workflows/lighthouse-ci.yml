@@ -1,0 +1,25 @@
+name: lighthouse-ci
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+  schedule:
+    - cron: '0 6 * * 1'  # weekly Monday run at 06:00 UTC
+
+jobs:
+  lhci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # If your site builds (Next.js, etc.), build & deploy first or point LHCI to the live URL.
+      # - run: npm ci && npm run build && npm run start &
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm i -D @lhci/cli
+      - name: Run Lighthouse CI
+        run: npx lhci autorun
