@@ -35,9 +35,44 @@ body{
 /* HERO */
 .heroWrap{
   position:relative;
-  border-radius:18px;
+  border-radius:12px;
   overflow:hidden;
-  background:linear-gradient(135deg,#eef3ff, #f2faf5);
+
+  /* Background image */
+  background-image: url("hero-security.jpg");
+  background-size: cover;        /* Fill entire section */
+  background-position: center;   /* Center image */
+  background-repeat: no-repeat;
+  min-height: 500px;             /* Adjust height if needed */
+}
+
+/* Dark overlay for readability */
+.heroWrap::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(
+    to right,
+    rgba(0,0,0,0.65),
+    rgba(0,0,0,0.35)
+  );
+  z-index:0;
+}
+
+/* Ensure content sits above overlay */
+.heroContent{
+  position:relative;
+  z-index:1;
+  color:#ffffff;
+}
+
+/* Improve text visibility */
+.heroTitle{
+  color:#ffffff !important;
+}
+
+.heroSub{
+  color:#e5e7eb !important;
 }
 .heroContent{position:relative;padding:24px 16px}
 .topBar{display:flex;align-items:center;gap:12px;margin-bottom:12px}
@@ -50,7 +85,7 @@ body{
 /* INPUTS / BUTTONS */
 .btn,.select,.input{
   border:1px solid var(--border);
-  border-radius:12px;
+  border-radius:0;
   padding:.7rem .95rem;
   background:var(--surface);
   color:var(--text);
@@ -196,4 +231,3 @@ body{
   background:#146EB4;
   color:#fff;
 }
-background-image: url("hero-security.jpg");
