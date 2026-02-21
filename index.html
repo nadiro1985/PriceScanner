@@ -16,7 +16,6 @@
   <!-- Icons & styles -->
   <link rel="icon" href="logo.svg?v=12">
   <link rel="mask-icon" href="logo.svg?v=12" color="#146EB4">
-  <!-- bump these numbers any time to hard-refresh -->
   <link rel="stylesheet" href="styles.css?v=62">
 
   <!-- PWA: manifest + iOS meta -->
@@ -79,15 +78,19 @@
     .btn-icon{background:transparent;border:none;cursor:pointer}
     .btn-sm{background:#146EB4;color:#fff;border:1px solid #0f5790;padding:.45rem .7rem;border-radius:10px;font-weight:700}
     .heroTitle{margin:4px 0 2px 0;font-size:34px;line-height:1.15;color:#146EB4;font-weight:800}
-    .heroSub{margin:2px 0 8px 0;color:#111}
-    .searchBar{margin-top:6px}
+    .heroSub{margin:2px 0 10px 0;color:#111}
 
     /* Red primary (AliExpress-like) */
     .btn-primary{background:#E11900;color:#fff;border:1px solid #b31200}
     .btn-primary:hover{filter:brightness(.97)}
 
+    /* Action bar replaces free typing search */
+    .actionBar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+    .actionHint{font-size:13px;color:#334155}
+    .actionPill{display:inline-flex;gap:8px;align-items:center;border:1px solid #e5e7eb;background:#f8fafc;border-radius:999px;padding:.35rem .65rem}
+
     /* Filters */
-    .filtersBar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:8px}
+    .filtersBar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:10px}
     .budgetWrap{display:flex;gap:8px;align-items:center}
     .input.small{padding:.5rem .6rem;font-size:14px;width:110px}
     .row.center{display:flex;justify-content:center;margin-top:12px}
@@ -103,10 +106,50 @@
     .cashBullets{margin:8px 0 10px 18px}
     .cashBullets li{margin:.14rem 0}
 
-    /* Quick categories */
-    .catBar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-    .catBtn{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:999px;padding:.45rem .75rem;font-weight:800;cursor:pointer}
-    .catBtn:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
+    /* Category dropdown bar */
+    .catNav{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .dd{position:relative}
+    .ddBtn{
+      border:1px solid var(--border);
+      background:var(--surface);
+      color:var(--text);
+      border-radius:999px;
+      padding:.45rem .75rem;
+      font-weight:900;
+      cursor:pointer;
+    }
+    .ddBtn:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
+    .ddMenu{
+      position:absolute;
+      top:calc(100% + 8px);
+      left:0;
+      min-width:260px;
+      background:var(--surface);
+      border:1px solid var(--border);
+      box-shadow:var(--shadow);
+      border-radius:12px;
+      padding:10px;
+      display:none;
+      z-index:50;
+    }
+    .dd.open .ddMenu{display:block}
+    .ddTitle{font-weight:900;color:#146EB4;margin:4px 6px 8px 6px}
+    .ddItem{
+      width:100%;
+      text-align:left;
+      border:1px solid transparent;
+      background:transparent;
+      color:var(--text);
+      padding:8px 10px;
+      border-radius:10px;
+      cursor:pointer;
+      font-weight:700;
+    }
+    .ddItem:hover{background:var(--surface-2);border-color:var(--border)}
+    .ddDivider{height:1px;background:var(--border);margin:8px 0}
+
+    /* Hidden search input (kept for script.js pipeline) */
+    .hiddenSearch{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
 
     /* Assistant */
     .chat-fab{position:fixed;right:16px;bottom:16px;z-index:70;display:inline-flex;align-items:center;gap:8px;background:#146EB4;color:#fff;border:1px solid #0f5790;padding:.7rem 1rem;border-radius:999px;box-shadow:0 6px 16px rgba(0,0,0,.18);font-weight:800}
@@ -117,6 +160,7 @@
     .footerRight{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   </style>
 </head>
+
 <body>
   <div class="container pad">
 
@@ -173,27 +217,94 @@
         </div>
 
         <h1 id="tagline" class="heroTitle">Compare Home Security Prices</h1>
-        <p class="heroSub">Search cameras, video doorbells, smart locks and alarm systems across trusted stores — and find the best deal fast.</p>
+        <p class="heroSub">Use the Shopping Assistant, Photo Search, or Categories to find cameras, doorbells, smart locks, alarms, sensors and accessories.</p>
 
-        <form class="row searchBar" onsubmit="return false" role="search" aria-label="Product search">
-          <input id="search" class="input" placeholder="Search home security devices…" style="flex:1 1 auto" aria-label="Search home security devices">
-          <!-- NOTE: remove capture here; we toggle it dynamically -->
-          <input id="photoInput" type="file" accept="image/*" hidden>
-          <button id="photoBtn" class="btn" type="button" title="Search by photo" aria-label="Search by photo">📷 Photo</button>
-          <button id="searchBtn" class="btn btn-primary" type="button">Search</button>
-        </form>
+        <!-- Hidden search input kept for script.js pipeline -->
+        <input id="search" class="hiddenSearch" aria-hidden="true" tabindex="-1">
 
-        <!-- Quick categories -->
-        <div class="catBar" role="navigation" aria-label="Home security categories">
-          <button class="catBtn" type="button" data-q="outdoor security camera">Outdoor Cameras</button>
-          <button class="catBtn" type="button" data-q="indoor security camera">Indoor Cameras</button>
-          <button class="catBtn" type="button" data-q="video doorbell">Video Doorbells</button>
-          <button class="catBtn" type="button" data-q="smart lock">Smart Locks</button>
-          <button class="catBtn" type="button" data-q="home alarm system">Alarm Systems</button>
-          <button class="catBtn" type="button" data-q="security camera accessories">Accessories</button>
+        <!-- Photo input (hidden) -->
+        <input id="photoInput" type="file" accept="image/*" hidden>
+
+        <!-- Action bar (no free typing) -->
+        <div class="actionBar" role="group" aria-label="Search actions">
+          <button id="photoBtn" class="btn" type="button" title="Search by photo" aria-label="Search by photo">📷 Photo Search</button>
+          <button id="assistantBtn" class="btn btn-primary" type="button" aria-label="Use shopping assistant">🛍️ Use Shopping Assistant</button>
+          <span class="actionPill"><span class="actionHint">Tip:</span> click a category below to browse</span>
         </div>
 
-        <!-- Filters -->
+        <!-- Category dropdown navigation -->
+        <div class="catNav" role="navigation" aria-label="Home security categories">
+
+          <div class="dd" data-dd>
+            <button class="ddBtn" type="button">Cameras ▾</button>
+            <div class="ddMenu" role="menu">
+              <div class="ddTitle">Cameras</div>
+              <button class="ddItem" type="button" data-q="outdoor security camera">Outdoor security cameras</button>
+              <button class="ddItem" type="button" data-q="indoor security camera">Indoor security cameras</button>
+              <button class="ddItem" type="button" data-q="poe security camera">PoE security cameras</button>
+              <button class="ddItem" type="button" data-q="floodlight security camera">Floodlight cameras</button>
+              <button class="ddItem" type="button" data-q="security camera system nvr kit">NVR kits / camera systems</button>
+              <div class="ddDivider"></div>
+              <button class="ddItem" type="button" data-q="security camera no subscription local storage">No-subscription cameras</button>
+            </div>
+          </div>
+
+          <div class="dd" data-dd>
+            <button class="ddBtn" type="button">Doorbells ▾</button>
+            <div class="ddMenu" role="menu">
+              <div class="ddTitle">Video Doorbells</div>
+              <button class="ddItem" type="button" data-q="video doorbell">Video doorbells</button>
+              <button class="ddItem" type="button" data-q="wireless video doorbell">Wireless video doorbells</button>
+              <button class="ddItem" type="button" data-q="video doorbell no subscription local storage">Doorbells without subscription</button>
+            </div>
+          </div>
+
+          <div class="dd" data-dd>
+            <button class="ddBtn" type="button">Smart Locks ▾</button>
+            <div class="ddMenu" role="menu">
+              <div class="ddTitle">Smart Locks</div>
+              <button class="ddItem" type="button" data-q="smart lock">Smart locks</button>
+              <button class="ddItem" type="button" data-q="fingerprint smart lock">Fingerprint smart locks</button>
+              <button class="ddItem" type="button" data-q="keypad deadbolt smart lock">Keypad deadbolt locks</button>
+            </div>
+          </div>
+
+          <div class="dd" data-dd>
+            <button class="ddBtn" type="button">Alarm & Sensors ▾</button>
+            <div class="ddMenu" role="menu">
+              <div class="ddTitle">Alarm & Sensors</div>
+              <button class="ddItem" type="button" data-q="home alarm system">Home alarm systems</button>
+              <button class="ddItem" type="button" data-q="motion sensor home security">Motion sensors</button>
+              <button class="ddItem" type="button" data-q="door sensor home security">Door/window sensors</button>
+              <button class="ddItem" type="button" data-q="security siren alarm">Sirens</button>
+            </div>
+          </div>
+
+          <div class="dd" data-dd>
+            <button class="ddBtn" type="button">Accessories ▾</button>
+            <div class="ddMenu" role="menu">
+              <div class="ddTitle">Accessories</div>
+              <button class="ddItem" type="button" data-q="security camera mount bracket">Mounts & brackets</button>
+              <button class="ddItem" type="button" data-q="micro sd card security camera">Micro SD cards</button>
+              <button class="ddItem" type="button" data-q="security camera power adapter cable">Power adapters & cables</button>
+              <button class="ddItem" type="button" data-q="solar panel for security camera">Solar panels</button>
+            </div>
+          </div>
+
+          <div class="dd" data-dd>
+            <button class="ddBtn" type="button">Other ▾</button>
+            <div class="ddMenu" role="menu">
+              <div class="ddTitle">Other</div>
+              <button class="ddItem" type="button" data-q="intercom system">Intercom systems</button>
+              <button class="ddItem" type="button" data-q="baby monitor camera">Baby monitors</button>
+              <button class="ddItem" type="button" data-q="smart smoke detector">Smoke detectors</button>
+              <button class="ddItem" type="button" data-q="carbon monoxide detector smart">CO detectors</button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Filters (still apply to results) -->
         <div class="filtersBar" role="group" aria-label="Filters">
           <div class="budgetWrap" aria-label="Budget filter">
             <input id="minPrice" class="input small" type="number" min="0" step="1" placeholder="Min">
@@ -239,7 +350,6 @@
         <a href="privacy.html" rel="nofollow">Privacy</a>
         <a href="terms.html" rel="nofollow">Terms</a>
         <a href="affiliates.html" rel="nofollow">Affiliate Disclosure</a>
-        <!-- Force update button -->
         <button id="forceUpdate" class="btn" type="button" title="Clear cache and reload new files">Force update</button>
       </div>
     </div>
@@ -302,13 +412,10 @@
   <script>
     // Footer year and brand
     document.getElementById('year').textContent = new Date().getFullYear();
-    (function(){ const cfg = JSON.parse(localStorage.getItem('site.config')||"{}");
-      if(cfg && cfg.name){ document.getElementById('brandFooter').textContent = cfg.name; }})();
-    // Search button triggers input event
-    document.getElementById('searchBtn')?.addEventListener('click', function(e){
-      e.preventDefault(); const input = document.getElementById('search');
-      if (input) input.dispatchEvent(new Event('input', { bubbles: true }));
-    });
+    (function(){
+      const cfg = JSON.parse(localStorage.getItem('site.config')||"{}");
+      if(cfg && cfg.name){ document.getElementById('brandFooter').textContent = cfg.name; }
+    })();
 
     // Force update handler (clears caches + SW and reloads with fresh ?v=)
     async function forceUpdate(){
@@ -322,10 +429,55 @@
           await Promise.all(regs.map(r=>r.unregister()));
         }
       }catch(e){}
-      const u = new URL(location.href); u.searchParams.set('v', Date.now().toString());
+      const u = new URL(location.href);
+      u.searchParams.set('v', Date.now().toString());
       location.replace(u.toString());
     }
     document.getElementById('forceUpdate')?.addEventListener('click', forceUpdate);
+
+    // Dropdown open/close behavior (stays open until click outside / ESC)
+    (function(){
+      const dds = Array.from(document.querySelectorAll('[data-dd]'));
+      function closeAll(){ dds.forEach(d => d.classList.remove('open')); }
+
+      dds.forEach(dd=>{
+        const btn = dd.querySelector('.ddBtn');
+        btn?.addEventListener('click', (e)=>{
+          e.preventDefault();
+          const isOpen = dd.classList.contains('open');
+          closeAll();
+          if (!isOpen) dd.classList.add('open');
+        });
+      });
+
+      document.addEventListener('click', (e)=>{
+        const inside = e.target.closest && e.target.closest('[data-dd]');
+        if (!inside) closeAll();
+      });
+
+      document.addEventListener('keydown', (e)=>{
+        if (e.key === 'Escape') closeAll();
+      });
+
+      // Category item triggers search pipeline (uses hidden #search input)
+      document.querySelectorAll('.ddItem').forEach(item=>{
+        item.addEventListener('click', ()=>{
+          const q = item.getAttribute('data-q') || '';
+          const input = document.getElementById('search');
+          if (input) {
+            input.value = q;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+          closeAll();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+      });
+    })();
+
+    // Open assistant button
+    document.getElementById('assistantBtn')?.addEventListener('click', ()=>{
+      document.getElementById('chatFab')?.click();
+    });
 
     // ---- Photo source chooser + auto-run search ----
     (function(){
@@ -370,17 +522,22 @@
         // Reset capture so next time we always show the choice first
         photoInput.removeAttribute('capture');
 
-        // If your app exposes a handler, call it
         if (typeof window.startPhotoSearch === 'function') {
           try { window.startPhotoSearch(file); } catch(e){}
         }
 
-        // Also broadcast a custom event other scripts can listen for
         try {
           document.dispatchEvent(new CustomEvent('ps:photo-selected', { detail: { file } }));
         } catch(e){}
-        // If your script.js already listens to #photoInput change, it has fired too.
       });
+    })();
+
+    // Cashback info toggle
+    (function(){
+      const bar = document.getElementById('cashBar');
+      const info = document.getElementById('cashInfo');
+      document.getElementById('cashLearn')?.addEventListener('click', ()=> info?.classList.toggle('open'));
+      document.getElementById('cashClose')?.addEventListener('click', ()=>{ if(bar) bar.style.display='none'; info?.classList.remove('open'); });
     })();
   </script>
 
@@ -393,7 +550,7 @@
     }
   </script>
 
-  <!-- IMPORTANT: keep script.js a JS file (not HTML). Cache-busted version below. -->
-  <script defer src="script.js?v=61"></script>
+  <!-- IMPORTANT: keep script.js a JS file (not HTML). -->
+  <script defer src="script.js?v=62"></script>
 </body>
 </html>
