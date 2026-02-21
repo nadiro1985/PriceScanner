@@ -13,7 +13,7 @@ const PLACEHOLDER_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
 );
 
 // === VENDORS ===
-// All selectable now; only live vendors fetch today.
+// We will NOT show a store list in UI, but we will still search live vendors.
 const vendorDefs = [
   { name: "AliExpress", slug: "aliexpress", live: true,  color: "red"   },
   { name: "Amazon",     slug: "amazon",     live: true,  color: "blue"  },
@@ -30,9 +30,13 @@ const vendorDefs = [
   { name: "Walmart",    slug: "walmart",    live: false, color: "blue"  }
 ].sort((a,b)=>a.name.localeCompare(b.name));
 
-let enabled = vendorDefs.map(v => v.name);                              // all selected by default
-const vendorPages  = Object.fromEntries(vendorDefs.map(v => [v.name, 1])); // for "More results"
-const vendorLimits = { "AliExpress": 40, "eBay": 50, "Amazon": 20 };       // UI page sizes (Worker may clamp)
+// Always use LIVE vendors only (since we are hiding vendor selection UI)
+const LIVE_VENDORS = vendorDefs.filter(v => v.live).map(v => v.name);
+let enabled = [...LIVE_VENDORS];
+
+// paging
+const vendorPages  = Object.fromEntries(vendorDefs.map(v => [v.name, 1]));
+const vendorLimits = { "AliExpress": 40, "eBay": 50, "Amazon": 20 };
 
 // UI state
 let currency    = "SGD";
@@ -51,15 +55,40 @@ const offersByVendor = Object.fromEntries(vendorDefs.map(v => [v.name, []]));
 
 // i18n (short)
 const i18n = { en:{Lang:"Language",Currency:"Currency",Sort:"Sort by",Watchlist:"Watchlist",Refresh:"Refresh",MaxShip:"Max ship days"} };
-const trending = ["headphones","iphone","ssd","laptop","smartwatch","wireless earbuds","gaming mouse","4K TV","backpack"];
+
+// Focused trending (home security)
+const trending = [
+  "outdoor security camera",
+  "indoor security camera",
+  "video doorbell",
+  "smart lock",
+  "home alarm system",
+  "wireless alarm system",
+  "security camera system kit",
+  "security camera without subscription",
+  "solar security camera"
+];
 
 // helpers
-function fmt(n){ try{ return new Intl.NumberFormat(currency==='SGD'?'en-SG':(lang==='ar'?'ar':'en'),{style:'currency',currency}).format(n) }catch(e){ return Number(n).toFixed(2) } }
+function fmt(n){
+  try{
+    return new Intl.NumberFormat(currency==='SGD'?'en-SG':(lang==='ar'?'ar':'en'),{style:'currency',currency}).format(n);
+  }catch(e){
+    return Number(n).toFixed(2);
+  }
+}
 const $ = sel => document.querySelector(sel);
 function t(k){ return (i18n[lang] && i18n[lang][k]) || i18n.en[k] || k; }
-function show(el, on){ if (el) el.style.display = on ? 'flex' : 'none'; }
-async function postJSON(url, data){ const r = await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(data)}); return r.json(); }
-(function(){ try{ const loc=(navigator.language||"en-US").split("-")[1]; if(loc) userCountry=loc.toUpperCase(); }catch{} })();
+async function postJSON(url, data){
+  const r = await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(data)});
+  return r.json();
+}
+(function(){
+  try{
+    const loc=(navigator.language||"en-US").split("-")[1];
+    if(loc) userCountry=loc.toUpperCase();
+  }catch{}
+})();
 
 // Theme
 function applyTheme(mode){
@@ -83,10 +112,18 @@ async function loadRates() {
     if (cached && (Date.now()-cached.at) < 72*60*60*1000) { fx=cached; }
   }
 }
-function convertAmount(amount, fromCur){ const from=(fromCur||"USD").toUpperCase(); const to=currency.toUpperCase();
-  if(from===to) return amount; const r=fx.rates||{}; const rFrom=(from===fx.base)?1:r[from]; const rTo=(to===fx.base)?1:r[to];
-  if(!rFrom||!rTo) return amount; return amount*(rTo/rFrom); }
+function convertAmount(amount, fromCur){
+  const from=(fromCur||"USD").toUpperCase();
+  const to=currency.toUpperCase();
+  if(from===to) return amount;
+  const r=fx.rates||{};
+  const rFrom=(from===fx.base)?1:r[from];
+  const rTo=(to===fx.base)?1:r[to];
+  if(!rFrom||!rTo) return amount;
+  return amount*(rTo/rFrom);
+}
 function priceInSelected(o){ return convertAmount(o.price, o.currency||"USD"); }
+
 function estimateShipDays(vendor,country){
   const fast = new Set(["eBay","Amazon"]);
   const intl = new Set(["AliExpress"]);
@@ -107,6 +144,88 @@ function outUrl(item){
   });
   return `${WORKER_BASE}/out?${params.toString()}`;
 }
+
+// Toast
+function toast(m){
+  const t=$('#toast');
+  if(!t) return;
+  t.textContent=m;
+  t.style.display='block';
+  setTimeout(()=>t.style.display='none',2600);
+}
+
+/* =========================
+   HOME SECURITY QUERY GUARD
+   ========================= */
+
+// Allowlist: home-security intent words + common brands.
+// If query doesn't include any of these, we block the search.
+const HOME_SECURITY_TERMS = [
+  // categories
+  "security", "home security", "smart home", "surveillance", "cctv",
+  "camera", "security camera", "outdoor camera", "indoor camera", "ptz",
+  "nvr", "dvr", "ip camera", "wifi camera", "wireless camera",
+  "doorbell", "video doorbell",
+  "lock", "smart lock", "deadbolt", "keypad lock", "fingerprint lock",
+  "alarm", "home alarm", "alarm system", "siren",
+  "motion sensor", "door sensor", "window sensor", "sensor", "contact sensor",
+  "floodlight camera", "solar camera", "night vision", "2k", "4k",
+  "no subscription", "local storage", "sd card", "base station",
+
+  // brands (add more anytime)
+  "ring", "arlo", "eufy", "reolink", "wyze", "blink", "nest", "google nest",
+  "ezviz", "imou", "hikvision", "dahua", "tp-link", "tapo", "aqara", "xiaomi",
+  "yale", "schlage", "august", "kwikset", "ultraloq"
+];
+
+const HOME_SECURITY_BLOCKLIST = [
+  // common unrelated consumer electronics
+  "iphone", "ipad", "samsung phone", "smartphone", "phone",
+  "laptop", "macbook", "gpu", "graphics card", "headphones", "earbuds",
+  "playstation", "ps5", "xbox", "nintendo", "tablet", "monitor",
+  "smartwatch"
+];
+
+function normalizeText(s){
+  return String(s||'').toLowerCase().replace(/[^\w\s-]/g,' ').replace(/\s+/g,' ').trim();
+}
+
+function isHomeSecurityQuery(q){
+  const txt = normalizeText(q);
+  if (!txt) return false;
+
+  // hard block if user is clearly searching a blocked category
+  for (const b of HOME_SECURITY_BLOCKLIST){
+    if (txt.includes(b)) return false;
+  }
+
+  // allow if contains any allow-term
+  for (const a of HOME_SECURITY_TERMS){
+    if (txt.includes(a)) return true;
+  }
+
+  // Also allow if it contains "camera" + something related (some people type model numbers)
+  if (txt.includes("camera")) return true;
+
+  return false;
+}
+
+// Optional: make queries slightly more relevant.
+// If user types "doorbell" -> "video doorbell security" (helps results)
+function normalizeHomeSecurityQuery(q){
+  const txt = normalizeText(q);
+  if (!txt) return txt;
+  if (txt.includes("video doorbell")) return txt;
+  if (txt.includes("doorbell")) return `${txt} video doorbell security`;
+  if (txt.includes("lock")) return `${txt} smart lock`;
+  if (txt.includes("alarm")) return `${txt} home alarm system`;
+  if (txt.includes("camera") && !txt.includes("security")) return `${txt} security`;
+  return txt;
+}
+
+/* =========================
+   DATA LOADERS
+   ========================= */
 
 // ---- AliExpress enrichment (optional) ----
 const AE_DETAIL_ENRICH_COUNT = 0;
@@ -137,7 +256,7 @@ async function loadVendor(vendor, {append=false, page=1}={}){
   const def = vendorDefs.find(v => v.name === vendor); if (!def) return;
   const term=(query||"").trim(); if(!enabled.includes(vendor)||!WORKER_BASE||!term) return;
 
-  // Only hit Worker for live vendors; others are UI-only for now.
+  // Only hit Worker for live vendors.
   if (!def.live) return;
 
   try{
@@ -177,9 +296,10 @@ async function loadAll({append=false}={}){
 
 function currentResults(){
   let base = [];
-  for (const v of vendorDefs.map(v=>v.name)) {
-    if (enabled.includes(v)) base = base.concat(offersByVendor[v]||[]);
+  for (const v of LIVE_VENDORS) {
+    base = base.concat(offersByVendor[v]||[]);
   }
+
   // budget filter
   if (minPriceVal != null || maxPriceVal != null) {
     base = base.filter(o=>{
@@ -189,74 +309,32 @@ function currentResults(){
       return true;
     });
   }
+
   if (maxShipDays) base = base.filter(o => (o.shipDays||estimateShipDays(o.vendor,userCountry)) <= Number(maxShipDays));
+
   if (sortBy==='priceAsc')  base.sort((a,b)=> priceInSelected(a) - priceInSelected(b));
   if (sortBy==='priceDesc') base.sort((a,b)=> priceInSelected(b) - priceInSelected(a));
   if (sortBy==='rating')    base.sort((a,b)=> (b.rating||4.2) - (a.rating||4.2));
 
   // de-dup by title|vendor; keep better price
   const m=new Map();
-  for(const o of base){ const k=((o.title||'')+'|'+o.vendor).toLowerCase(); const v=m.get(k);
-    if(!v || priceInSelected(o) < priceInSelected(v)) m.set(k,o); }
+  for(const o of base){
+    const k=((o.title||'')+'|'+o.vendor).toLowerCase();
+    const v=m.get(k);
+    if(!v || priceInSelected(o) < priceInSelected(v)) m.set(k,o);
+  }
   return Array.from(m.values());
 }
 
 function renderLabels(){
   const setTxt = (id, key) => { const el=document.getElementById(id); if (el) el.textContent=t(key); };
-  setTxt('lblLang','Lang'); setTxt('lblCurrency','Currency'); setTxt('lblSort','Sort');
-  setTxt('lblWatchlist','Watchlist'); setTxt('lblShip','MaxShip');
+  setTxt('lblLang','Lang');
+  setTxt('lblCurrency','Currency');
+  setTxt('lblSort','Sort');
+  setTxt('lblWatchlist','Watchlist');
+  setTxt('lblShip','MaxShip');
   document.documentElement.dir = (lang==='ar') ? 'rtl' : 'ltr';
 }
-
-/* ===== Stores panel ===== */
-function buildSourcesPanel(){
-  const list = $('#sourcesPanelList'); if(!list) return;
-  list.innerHTML = '';
-
-  vendorDefs.forEach(v=>{
-    const id='src_'+v.slug;
-    const label=document.createElement('label');
-    label.className='src-chip';
-    label.title = `Include ${v.name}`;
-    label.innerHTML=`<input type="checkbox" id="${id}" ${enabled.includes(v.name)?'checked':''}/> <span>${v.name}</span>`;
-    list.appendChild(label);
-
-    const inp=label.querySelector('input');
-    const sync = ()=> label.classList.toggle('on', inp.checked);
-    sync();
-
-    inp.addEventListener('change', async ()=>{
-      if(inp.checked){ if(!enabled.includes(v.name)) enabled.push(v.name); }
-      else { enabled = enabled.filter(n=>n!==v.name); }
-      updateSourcesAllBox();
-      sync();
-      if (query.trim()) {
-        vendorPages[v.name]=1;
-        await loadVendor(v.name,{append:false,page:1});
-      }
-      render();
-    });
-  });
-
-  updateSourcesAllBox();
-}
-function updateSourcesAllBox(){
-  const all = $('#srcAll'); if(!all) return;
-  const allNames = vendorDefs.map(v=>v.name);
-  all.checked = allNames.length>0 && allNames.every(n=>enabled.includes(n));
-  const chip = all.closest('label'); if(chip) chip.classList.toggle('on', all.checked);
-}
-function setAllSources(on){
-  enabled = on ? vendorDefs.map(v=>v.name) : [];
-  vendorDefs.forEach(v=>{
-    const inp = document.getElementById('src_'+v.slug);
-    if (inp) { inp.checked = on; const chip = inp.closest('label'); chip?.classList.toggle('on', on); }
-  });
-  updateSourcesAllBox();
-}
-
-// Toast
-function toast(m){ const t=$('#toast'); if(!t) return; t.textContent=m; t.style.display='block'; setTimeout(()=>t.style.display='none',2600); }
 
 // ----- RENDER -----
 function render(){
@@ -264,7 +342,10 @@ function render(){
 
   // Results grid
   const data = currentResults();
-  const grid = $('#grid'); grid.innerHTML='';
+  const grid = $('#grid');
+  if (!grid) return;
+  grid.innerHTML='';
+
   data.forEach(item=>{
     const p = priceInSelected(item);
     const shipDays = item.shipDays || estimateShipDays(item.vendor, userCountry);
@@ -315,7 +396,14 @@ function render(){
 
 /* ============ Photo Search & Chat Assistant ============ */
 let mobilenetModel = null;
-function loadScript(src){ return new Promise((resolve,reject)=>{ const s=document.createElement('script'); s.src=src; s.async=true; s.onload=resolve; s.onerror=reject; document.head.appendChild(s); });}
+function loadScript(src){
+  return new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src=src; s.async=true;
+    s.onload=resolve; s.onerror=reject;
+    document.head.appendChild(s);
+  });
+}
 async function ensureMobileNet(){
   if (mobilenetModel) return mobilenetModel;
   await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js');
@@ -324,6 +412,18 @@ async function ensureMobileNet(){
   mobilenetModel = await mobilenet.load();
   return mobilenetModel;
 }
+
+function mapPhotoLabelsToHomeSecurity(labels){
+  const txt = labels.join(' ').toLowerCase();
+
+  if (/(camera|webcam|camcorder|lens|projector|tripod)/i.test(txt)) return "security camera";
+  if (/(doorknob|door|lock|padlock|key)/i.test(txt)) return "smart lock";
+  if (/(siren|alarm|smoke alarm|bell|buzzer)/i.test(txt)) return "home alarm system";
+  if (/(monitor|screen|television|tv)/i.test(txt)) return "indoor security camera";
+
+  return "home security device";
+}
+
 async function searchByPhoto(file){
   if (!file) return;
   try {
@@ -333,12 +433,12 @@ async function searchByPhoto(file){
     await new Promise(res => { img.onload = res; img.onerror = res; });
     const preds = await model.classify(img);
     const labels = (preds||[]).slice(0,3).map(p=>p.className);
-    const qText = labels.join(' ');
+
+    const qText = mapPhotoLabelsToHomeSecurity(labels);
+
     const input=$('#search'); if (input){ input.value = qText; }
-    query = qText; localStorage.setItem('ps.lastQuery',query);
-    Object.keys(vendorPages).forEach(k=> vendorPages[k]=1);
-    await loadAll({append:false});
-    render();
+    await runSearch(qText);
+
     URL.revokeObjectURL(img.src);
   } catch(e){
     console.warn('Photo search error:', e);
@@ -360,19 +460,17 @@ function addChatMsg(role, html){
 }
 function parseIntent(text){
   const msg = String(text||'').toLowerCase();
-  const vendors = vendorDefs.map(v=>v.name.toLowerCase()); // all selectable
-  const requested = vendors.filter(v => msg.includes(v));
-  const useVendors = requested.length ? requested : vendorDefs.map(v=>v.name.toLowerCase());
   let min=null, max=null;
   const m1 = msg.match(/\$?\s*(\d+)\s*[-to]\s*\$?\s*(\d+)/); if(m1){ min=+m1[1]; max=+m1[2]; }
   const m2 = msg.match(/(?:under|below|less than)\s*\$?\s*(\d+)/); if(m2){ max=+m2[1]; }
   const m3 = msg.match(/(?:over|above|more than)\s*\$?\s*(\d+)/); if(m3){ min=+m3[1]; }
   const m4 = msg.match(/(?:around|about)\s*\$?\s*(\d+)/); if(m4){ const n=+m4[1]; min=Math.floor(n*0.8); max=Math.ceil(n*1.2); }
+
   let cleaned = msg.replace(/\$?\d+(\s*[-to]\s*\$?\d+)?/g,'')
-                   .replace(/\b(under|below|less than|over|above|more than|around|about)\b/g,'');
-  vendorDefs.forEach(v=> cleaned = cleaned.replace(new RegExp(v.name,'ig'),''));
-  cleaned = cleaned.replace(/\s+/g,' ').trim();
-  return { query: cleaned || msg, vendors: useVendors, min, max };
+                   .replace(/\b(under|below|less than|over|above|more than|around|about)\b/g,'')
+                   .replace(/\s+/g,' ').trim();
+
+  return { query: cleaned || msg, min, max };
 }
 async function searchWorker(slug, q, page=1, limit=40){
   const url = new URL(`${WORKER_BASE}/search/${slug}`);
@@ -405,38 +503,48 @@ function resultCard(item){
 }
 async function assistantRespond(userText){
   const intent = parseIntent(userText);
-  addChatMsg('bot', `<div class="bot-text">Looking for <b>${intent.query}</b>${intent.min||intent.max?` in your price range${intent.min?` ≥ ${fmt(intent.min)}`:''}${intent.max?` ≤ ${fmt(intent.max)}`:''}.`:'.'}</div>`);
 
-  // Run searches for live vendors only (others will work once wired)
-  const live = vendorDefs.filter(v=>v.live && intent.vendors.includes(v.name.toLowerCase()));
-  const queries = live.map(v => searchWorker(v.slug, intent.query, 1, vendorLimits[v.name] || 40));
+  // enforce home-security in assistant too
+  if (!isHomeSecurityQuery(intent.query)) {
+    addChatMsg('bot', `<div class="bot-text">I can help with <b>home security devices</b> only (cameras, doorbells, smart locks, alarms). Try: "outdoor security camera under 150".</div>`);
+    return;
+  }
+
+  const safeQ = normalizeHomeSecurityQuery(intent.query);
+
+  addChatMsg(
+    'bot',
+    `<div class="bot-text">Looking for <b>${safeQ}</b>${intent.min||intent.max?` in your price range${intent.min?` ≥ ${fmt(intent.min)}`:''}${intent.max?` ≤ ${fmt(intent.max)}`:''}.`:'.'}</div>`
+  );
+
+  // Search live vendors only
+  const live = vendorDefs.filter(v=>v.live);
+  const queries = live.map(v => searchWorker(v.slug, safeQ, 1, vendorLimits[v.name] || 40));
   const resultsByVendor = await Promise.all(queries);
+
   let pool = [];
   resultsByVendor.forEach((arr, i) => {
     const vendorName = live[i].name;
     (arr||[]).forEach(o => pool.push({ ...o, vendor: vendorName }));
   });
-  if (intent.min!=null || intent.max!=null){ pool = pool.filter(o => withinRange(o, intent.min, intent.max)); }
-  pool.sort((a,b) => priceInSelected(a) - priceInSelected(b) || (b.rating||0)-(a.rating||0));
-  if (!pool.length){ addChatMsg('bot', `<div class="bot-text">No great matches yet. Try adding brand/model or widening price range.</div>`); return; }
 
-  // 1) show top in chat
+  if (intent.min!=null || intent.max!=null){
+    pool = pool.filter(o => withinRange(o, intent.min, intent.max));
+  }
+
+  pool.sort((a,b) => priceInSelected(a) - priceInSelected(b) || (b.rating||0)-(a.rating||0));
+  if (!pool.length){
+    addChatMsg('bot', `<div class="bot-text">No great matches yet. Try adding a brand/model or widening your price range.</div>`);
+    return;
+  }
+
+  // show top in chat
   const top = pool.slice(0,3).map(resultCard).join('');
   addChatMsg('bot', `<div class="chat-cards">${top}</div>`);
 
-  // 2) reflect to main page
-  const input=$('#search'); if (input){ input.value = intent.query; }
-  query = intent.query; localStorage.setItem('ps.lastQuery',query);
-  Object.keys(vendorPages).forEach(k=> vendorPages[k]=1);
-  enabled = vendorDefs.map(v=>v.name); // all selected
-  updateSourcesAllBox();
-  vendorDefs.forEach(v=>{
-    const inp = document.getElementById('src_'+v.slug);
-    if(inp){ inp.checked=true; inp.closest('label')?.classList.add('on'); }
-  });
-
-  await loadAll({append:false});
-  render();
+  // reflect to main page
+  const input=$('#search'); if (input){ input.value = safeQ; }
+  await runSearch(safeQ);
 }
 
 // Cashback (advert-only: toggle learn/close; no network; no local email storage)
@@ -506,29 +614,56 @@ function initSignupUI(){
   });
 }
 
+/* =========================
+   SEARCH ORCHESTRATION
+   ========================= */
+
+async function runSearch(rawQ){
+  const inputQ = String(rawQ||"").trim();
+  if (!inputQ) return;
+
+  // Guard: home-security only
+  if (!isHomeSecurityQuery(inputQ)) {
+    toast('This site searches Home Security devices only (cameras, doorbells, smart locks, alarms).');
+    // Optional: clear results if you want
+    // for (const v of LIVE_VENDORS) offersByVendor[v] = [];
+    // render();
+    return;
+  }
+
+  const safeQ = normalizeHomeSecurityQuery(inputQ);
+
+  // persist and search
+  query = safeQ;
+  localStorage.setItem('ps.lastQuery', query);
+
+  // Always use live vendors only
+  enabled = [...LIVE_VENDORS];
+
+  Object.keys(vendorPages).forEach(k=> vendorPages[k]=1);
+  await loadAll({append:false});
+  render();
+}
+
 // BOOT
 let debounce;
 window.addEventListener('DOMContentLoaded', async ()=>{
+  // Hide store panel UI completely
+  const sp = $('#sourcesPanel');
+  if (sp) sp.style.display = 'none';
+
   // Theme
   $('#themeToggle')?.addEventListener('click', ()=> applyTheme( (localStorage.getItem('ps.theme')==='dark') ? 'light' : 'dark' ));
 
   // Language/Currency/Sort/Ship
-  const selLang=$('#lang'); if(selLang){ selLang.value=lang; selLang.onchange=()=>{ lang=selLang.value; localStorage.setItem('ps.lang',lang); render(); } }
+  const selLang=$('#lang');
+  if(selLang){
+    selLang.value=lang;
+    selLang.onchange=()=>{ lang=selLang.value; localStorage.setItem('ps.lang',lang); render(); };
+  }
   $('#currency')?.addEventListener('change',(e)=>{ currency=e.target.value; render(); });
   $('#sort')?.addEventListener('change',(e)=>{ sortBy=e.target.value; render(); });
   $('#shipMax')?.addEventListener('change',(e)=>{ maxShipDays=e.target.value; render(); });
-
-  // Stores panel
-  buildSourcesPanel();
-  $('#srcAll')?.addEventListener('change', async (e)=>{
-    const on = e.target.checked;
-    setAllSources(on);
-    if (query.trim()) {
-      Object.keys(vendorPages).forEach(k=> vendorPages[k]=1);
-      await loadAll({append:false});
-    }
-    render();
-  });
 
   // Budget filter
   $('#applyBudget')?.addEventListener('click', ()=>{
@@ -539,14 +674,31 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     render();
   });
 
-  // Search input
-  $('#search')?.addEventListener('input',(e)=>{ query=e.target.value; localStorage.setItem('ps.lastQuery',query);
-    clearTimeout(debounce); debounce=setTimeout(async()=>{
-      Object.keys(vendorPages).forEach(k=> vendorPages[k]=1);
-      await loadAll({append:false});
-      render();
-    },250); });
-  $('#searchBtn')?.addEventListener('click',()=>{ const input=$('#search'); if(input){ input.dispatchEvent(new Event('input',{bubbles:true})); } });
+  // Search input (debounced) — still allowed, but guarded to home security only
+  $('#search')?.addEventListener('input',(e)=>{
+    const raw = e.target.value || '';
+    clearTimeout(debounce);
+    debounce=setTimeout(async()=>{
+      await runSearch(raw);
+    },250);
+  });
+
+  // Search button
+  $('#searchBtn')?.addEventListener('click', async ()=>{
+    const input = $('#search');
+    await runSearch(input ? input.value : '');
+  });
+
+  // Category quick buttons (from index.html)
+  document.querySelectorAll('.catBtn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const q = btn.getAttribute('data-q') || '';
+      const input = $('#search');
+      if (input) input.value = q;
+      await runSearch(q);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
 
   // Photo search
   $('#photoBtn')?.addEventListener('click', ()=> $('#photoInput')?.click());
@@ -566,16 +718,21 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     await assistantRespond(txt);
   });
 
-  // More results (paged fetch for each enabled vendor)
+  // More results (paged fetch for each live vendor)
   $('#moreBtn')?.addEventListener('click', async ()=>{
     vendorDefs.filter(v=>v.live && enabled.includes(v.name)).forEach(v => vendorPages[v.name] = (vendorPages[v.name]||1) + 1);
+
     const before = currentResults().length;
     await loadAll({append:true});
     const after = currentResults().length;
     render();
+
     if (after === before) {
       toast('No more results.');
-      const mb = $('#moreBtn'); mb.disabled = true; mb.style.opacity = '.6'; mb.style.pointerEvents = 'none';
+      const mb = $('#moreBtn');
+      mb.disabled = true;
+      mb.style.opacity = '.6';
+      mb.style.pointerEvents = 'none';
     }
   });
 
@@ -586,10 +743,13 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   // FX + boot search
   await loadRates();
 
-  // Start query
-  const startTerm=(new URLSearchParams(location.search).get('q')) || (localStorage.getItem('ps.lastQuery')) || 'headphones';
-  query=startTerm; const se=$('#search'); if(se) se.value=startTerm;
-  Object.keys(vendorPages).forEach(k=> vendorPages[k]=1);
-  await loadAll({append:false});
-  render();
+  // Start query (home security default)
+  const startTerm = (new URLSearchParams(location.search).get('q'))
+    || (localStorage.getItem('ps.lastQuery'))
+    || 'outdoor security camera';
+
+  const se=$('#search');
+  if(se) se.value=startTerm;
+
+  await runSearch(startTerm);
 });
