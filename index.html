@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
 
   <!-- Primary SEO -->
-  <title>PriceScanner — Compare Prices Across Top Stores</title>
-  <meta name="description" content="Search once across trusted stores. Clear prices, buyer protection and secure checkout.">
-  <meta name="keywords" content="price comparison, price scanner, online shopping deals, product prices, ecommerce, Shopee, Lazada, Amazon, eBay, AliExpress">
+  <title>PriceScanner — Compare Home Security Device Prices</title>
+  <meta name="description" content="Compare prices for home security cameras, video doorbells, smart locks and alarm systems across top stores.">
+  <meta name="keywords" content="home security price comparison, security camera prices, video doorbell deals, smart lock prices, alarm system comparison, Amazon, eBay, AliExpress">
   <meta name="robots" content="index,follow">
   <meta name="theme-color" content="#146EB4">
   <link rel="canonical" href="https://www.thepricescanner.com/">
@@ -27,8 +27,8 @@
   <link rel="apple-touch-icon" href="/icons/icon-180.png">
 
   <!-- Open Graph / Facebook -->
-  <meta property="og:title" content="PriceScanner — Compare Prices Across Top Stores">
-  <meta property="og:description" content="One search across trusted stores. Clear prices, strong buyer protection and secure checkout">
+  <meta property="og:title" content="PriceScanner — Compare Home Security Device Prices">
+  <meta property="og:description" content="Compare prices for cameras, doorbells, smart locks and alarm systems across trusted stores.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://www.thepricescanner.com/">
   <meta property="og:site_name" content="PriceScanner">
@@ -38,8 +38,8 @@
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="PriceScanner — Compare Prices Across Top Stores">
-  <meta name="twitter:description" content="One search across trusted stores. Clear prices, strong buyer protection and secure checkout">
+  <meta name="twitter:title" content="PriceScanner — Compare Home Security Device Prices">
+  <meta name="twitter:description" content="Compare prices for cameras, doorbells, smart locks and alarm systems across trusted stores.">
   <meta name="twitter:image" content="https://www.thepricescanner.com/og-1200x630.png">
 
   <!-- Structured Data: WebSite + Organization -->
@@ -113,6 +113,11 @@
     .cashBullets{margin:8px 0 10px 18px}
     .cashBullets li{margin:.14rem 0}
 
+    /* Quick categories */
+    .catBar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .catBtn{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:999px;padding:.45rem .75rem;font-weight:800;cursor:pointer}
+    .catBtn:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
+
     /* Assistant */
     .chat-fab{position:fixed;right:16px;bottom:16px;z-index:70;display:inline-flex;align-items:center;gap:8px;background:#146EB4;color:#fff;border:1px solid #0f5790;padding:.7rem 1rem;border-radius:999px;box-shadow:0 6px 16px rgba(0,0,0,.18);font-weight:800}
     .chat-panel{position:fixed;inset:0;display:none;z-index:60}
@@ -177,16 +182,26 @@
           </div>
         </div>
 
-        <h1 id="tagline" class="heroTitle">Find the best price, fast</h1>
-        <p class="heroSub">One search across trusted stores. Clear prices, strong buyer protection and secure checkout.</p>
+        <h1 id="tagline" class="heroTitle">Compare Home Security Prices</h1>
+        <p class="heroSub">Search cameras, video doorbells, smart locks and alarm systems across trusted stores — and find the best deal fast.</p>
 
         <form class="row searchBar" onsubmit="return false" role="search" aria-label="Product search">
-          <input id="search" class="input" placeholder="Search products…" style="flex:1 1 auto" aria-label="Search products">
+          <input id="search" class="input" placeholder="Search home security devices…" style="flex:1 1 auto" aria-label="Search home security devices">
           <!-- NOTE: remove capture here; we toggle it dynamically -->
           <input id="photoInput" type="file" accept="image/*" hidden>
           <button id="photoBtn" class="btn" type="button" title="Search by photo" aria-label="Search by photo">📷 Photo</button>
           <button id="searchBtn" class="btn btn-primary" type="button">Search</button>
         </form>
+
+        <!-- Quick categories -->
+        <div class="catBar" role="navigation" aria-label="Home security categories">
+          <button class="catBtn" type="button" data-q="outdoor security camera">Outdoor Cameras</button>
+          <button class="catBtn" type="button" data-q="indoor security camera">Indoor Cameras</button>
+          <button class="catBtn" type="button" data-q="video doorbell">Video Doorbells</button>
+          <button class="catBtn" type="button" data-q="smart lock">Smart Locks</button>
+          <button class="catBtn" type="button" data-q="home alarm system">Alarm Systems</button>
+          <button class="catBtn" type="button" data-q="security camera accessories">Accessories</button>
+        </div>
 
         <!-- Filters -->
         <div class="filtersBar" role="group" aria-label="Filters">
