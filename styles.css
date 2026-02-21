@@ -38,14 +38,14 @@ body{
   border-radius:18px;
   overflow:hidden;
 
-  /* ✅ Background image */
+  /* Background image */
   background: url("/hero-security.jpg") center center / cover no-repeat;
 
   /* Ensure hero has height so image shows */
   min-height: 420px;
 }
 
-/* ✅ Overlay for readability */
+/* Overlay for readability */
 .heroWrap::before{
   content:"";
   position:absolute;
@@ -69,7 +69,7 @@ body{
 .logoWrap{display:flex;align-items:center;gap:10px}
 .brandLogo{display:block}
 
-/* ✅ Make logo text readable on image */
+/* Make logo text readable on image */
 .logoText{font-weight:800;font-size:20px;color:#fff}
 
 .topControls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -96,7 +96,7 @@ body{
   margin-top:10px;
 }
 
-/* ✅ Headline and subtitle readable on image */
+/* Headline and subtitle readable on image */
 .heroTitle{
   font-weight:900;
   font-size:44px;
@@ -242,3 +242,16 @@ body{
   color:#fff;
   border-color:#146EB4;
 }
+
+/* === FORCE HERO BACKGROUND IMAGE (final override in case inline CSS overrides) === */
+.heroWrap{
+  background: url("/hero-security.jpg") center center / cover no-repeat !important;
+  min-height: 420px;
+}
+.heroWrap::before{
+  background: linear-gradient(to right, rgba(0,0,0,0.55), rgba(0,0,0,0.25)) !important;
+}
+.heroContent{ position:relative; z-index:1; }
+.heroTitle{ color:#ffffff !important; }
+.heroSub{ color:#e5e7eb !important; }
+.logoText{ color:#ffffff !important; }
