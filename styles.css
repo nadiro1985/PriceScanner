@@ -67,9 +67,15 @@ body{
 
 .topBar{display:flex;align-items:center;gap:12px;margin-bottom:12px}
 .logoWrap{display:flex;align-items:center;gap:10px}
-.brandLogo{display:block}
 
-/* Make logo text readable on image */
+/* ✅ UPDATED: Make logo bigger */
+.brandLogo{
+  display:block;
+  width:140px;
+  height:auto;
+}
+
+/* If you still keep .logoText anywhere */
 .logoText{font-weight:800;font-size:20px;color:#fff}
 
 .topControls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -231,6 +237,11 @@ body{
   .searchBar{flex-wrap:wrap}
   .chat-panel{right:10px;left:10px;width:auto}
   .heroWrap{min-height: 520px;}
+
+  /* ✅ Smaller logo on mobile */
+  .brandLogo{
+    width:110px;
+  }
 }
 
 /* Force-hide any old floating assistant button */
@@ -243,7 +254,7 @@ body{
   border-color:#146EB4;
 }
 
-/* === FORCE HERO BACKGROUND IMAGE (final override in case inline CSS overrides) === */
+/* === FORCE HERO BACKGROUND IMAGE (final override) === */
 .heroWrap{
   background: url("/hero-security.jpg") center center / cover no-repeat !important;
   min-height: 420px;
