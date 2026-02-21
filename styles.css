@@ -70,9 +70,9 @@ body{
 
 /* ✅ UPDATED: Make logo bigger */
 .brandLogo{
-  display:block;
-  width:140px;
-  height:auto;
+  width:160px !important;
+  height:auto !important;
+  max-width:none !important;
 }
 
 /* If you still keep .logoText anywhere */
