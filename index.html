@@ -3,9 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+
   <!-- Primary SEO -->
   <title>PriceScanner — Compare Home Security Device Prices</title>
-  <meta name="description" content="Compare prices for home security cameras, video doorbells, smart locks and alarm systems across top stores.">
+  <meta name="description" content="Compare prices for home security cameras, video doorbells, smart locks, alarms, sensors and accessories across top stores.">
   <meta name="keywords" content="home security price comparison, security camera prices, video doorbell deals, smart lock prices, alarm system comparison, Amazon, eBay, AliExpress">
   <meta name="robots" content="index,follow">
   <meta name="theme-color" content="#146EB4">
@@ -15,18 +16,18 @@
   <!-- Icons & styles -->
   <link rel="icon" href="logo.svg?v=12">
   <link rel="mask-icon" href="logo.svg?v=12" color="#146EB4">
-  <link rel="stylesheet" href="styles.css?v=63">
+  <link rel="stylesheet" href="styles.css?v=64">
 
-  <!-- PWA: manifest + iOS meta -->
+  <!-- PWA -->
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="PriceScanner">
   <link rel="apple-touch-icon" href="/icons/icon-180.png">
 
-  <!-- Open Graph / Facebook -->
+  <!-- Open Graph -->
   <meta property="og:title" content="PriceScanner — Compare Home Security Device Prices">
-  <meta property="og:description" content="Compare prices for cameras, doorbells, smart locks and alarm systems across trusted stores.">
+  <meta property="og:description" content="Find the best deal on home security devices — compare prices across trusted stores in seconds.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://www.thepricescanner.com/">
   <meta property="og:site_name" content="PriceScanner">
@@ -37,10 +38,10 @@
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="PriceScanner — Compare Home Security Device Prices">
-  <meta name="twitter:description" content="Compare prices for cameras, doorbells, smart locks and alarm systems across trusted stores.">
+  <meta name="twitter:description" content="Find the best deal on home security devices — compare prices across trusted stores in seconds.">
   <meta name="twitter:image" content="https://www.thepricescanner.com/og-1200x630.png">
 
-  <!-- Structured Data: WebSite + Organization -->
+  <!-- Structured Data -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -81,26 +82,23 @@
     .btn-primary{background:#E11900;color:#fff;border:1px solid #b31200}
     .btn-primary:hover{filter:brightness(.97)}
 
-    /* Category buttons */
+    /* Category buttons (NO dropdown) */
     .catBar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
     .catBtn{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:999px;padding:.45rem .75rem;font-weight:800;cursor:pointer}
     .catBtn:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
 
-    /* Action bar (Photo + Assistant) */
+    /* Action bar (Photo + Assistant only) */
     .actionBar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
-    .actionPill{display:inline-flex;gap:8px;align-items:center;border:1px solid #e5e7eb;background:#f8fafc;border-radius:999px;padding:.35rem .65rem}
-    .actionHint{font-size:13px;color:#334155}
 
     /* Filters */
     .filtersBar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px}
     .budgetWrap{display:flex;gap:8px;align-items:center}
     .input.small{padding:.5rem .6rem;font-size:14px;width:110px}
-    .row.center{display:flex;justify-content:center;margin-top:12px}
 
-    /* Hide the free-typing search input but keep it for JS */
+    /* Hide free typing input but keep it for JS */
     .hiddenSearch{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
 
-    /* Cashback (advert only) */
+    /* Cashback */
     .cashbackBar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:space-between;background:#0ea5e9;color:#fff;border-radius:12px;padding:10px;margin:10px 0}
     .cashLeft{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
     .cashTitle{font-weight:900}
@@ -111,19 +109,22 @@
     .cashBullets{margin:8px 0 10px 18px}
     .cashBullets li{margin:.14rem 0}
 
-    /* Assistant overlay (kept) */
+    /* Assistant overlay (single) */
     .chat-panel{position:fixed;inset:0;display:none;z-index:60}
     .chat-panel.open{display:flex}
     .chat-bg{position:absolute;inset:0;background:rgba(0,0,0,.35)}
     .chat-box{position:relative;z-index:1;margin:auto;background:var(--card,#fff);border-radius:12px;max-width:420px;width:92%;display:flex;flex-direction:column;max-height:80vh}
     .footerRight{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+    /* Safety: if any old floating assistant exists, hide it */
+    .chat-fab{display:none !important;}
   </style>
 </head>
 
 <body>
   <div class="container pad">
 
-    <!-- Cashback banner (advert only) -->
+    <!-- Cashback banner -->
     <section class="cashbackBar" id="cashBar" aria-label="Cashback announcement">
       <div class="cashLeft">
         <strong class="cashTitle">Earn 2–10% cashback</strong>
@@ -146,7 +147,7 @@
       <p style="margin:0;color:#334155;font-size:14px">Sign up and payout options will be added here later.</p>
     </section>
 
-    <!-- Header / hero -->
+    <!-- Hero -->
     <div class="heroWrap">
       <div class="heroContent">
         <div class="topBar">
@@ -174,33 +175,27 @@
           </div>
         </div>
 
-        <h1 id="tagline" class="heroTitle">Compare Home Security Prices</h1>
-        <p class="heroSub">Pick a category to browse. Use Photo Search or the Shopping Assistant to refine results inside the category.</p>
+        <h1 id="tagline" class="heroTitle">Compare Home Security Devices</h1>
+        <p class="heroSub">Find the best deal fast — browse by category, then refine with Photo Search or the Shopping Assistant.</p>
 
-        <!-- Hidden search input kept for script.js pipeline -->
+        <!-- Hidden search input kept for JS -->
         <input id="search" class="hiddenSearch" aria-hidden="true" tabindex="-1">
 
-        <!-- Quick categories (simple buttons like before) -->
+        <!-- Categories (NO dropdown, NO “Other”) -->
         <div class="catBar" role="navigation" aria-label="Home security categories">
           <button class="catBtn" type="button" data-q="outdoor security camera">Outdoor Cameras</button>
           <button class="catBtn" type="button" data-q="indoor security camera">Indoor Cameras</button>
-          <button class="catBtn" type="button" data-q="poe security camera">PoE Cameras</button>
           <button class="catBtn" type="button" data-q="video doorbell">Video Doorbells</button>
           <button class="catBtn" type="button" data-q="smart lock">Smart Locks</button>
-          <button class="catBtn" type="button" data-q="home alarm system">Alarm Systems</button>
-          <button class="catBtn" type="button" data-q="motion sensor home security">Sensors</button>
+          <button class="catBtn" type="button" data-q="home alarm system">Alarm & Sensors</button>
           <button class="catBtn" type="button" data-q="security camera accessories">Accessories</button>
-          <button class="catBtn" type="button" data-q="intercom system">Intercom</button>
-          <button class="catBtn" type="button" data-q="smart smoke detector">Smoke/CO</button>
-          <button class="catBtn" type="button" data-q="baby monitor camera">Baby Monitors</button>
         </div>
 
-        <!-- Photo + Assistant (below categories) -->
+        <!-- Actions under categories -->
         <div class="actionBar" role="group" aria-label="Search actions">
           <input id="photoInput" type="file" accept="image/*" hidden>
           <button id="photoBtn" class="btn" type="button" title="Search by photo" aria-label="Search by photo">📷 Photo Search</button>
           <button id="assistantBtn" class="btn btn-primary" type="button" aria-label="Open shopping assistant">🛍️ Shopping Assistant</button>
-          <span class="actionPill"><span class="actionHint">Tip:</span> Use the assistant to refine within the category</span>
         </div>
 
         <!-- Filters -->
@@ -254,7 +249,7 @@
     </div>
   </footer>
 
-  <!-- SINGLE Shopping Assistant overlay (kept) -->
+  <!-- SINGLE Shopping Assistant overlay -->
   <div id="chatPanel" class="chat-panel" aria-live="polite" aria-label="Shopping assistant">
     <div class="chat-bg" id="chatBg"></div>
     <div class="chat-box">
@@ -264,7 +259,7 @@
       </div>
       <div id="chatMessages" class="chat-messages"></div>
       <form id="chatForm" class="chat-form" onsubmit="return false">
-        <input id="chatInput" class="input chat-input" placeholder="Describe your ideal product" aria-label="Describe your product">
+        <input id="chatInput" class="input chat-input" placeholder="Tell me what you want (brand, model, budget, features)" aria-label="Describe your product">
         <button id="chatSend" class="btn btn-primary" type="submit">Send</button>
       </form>
     </div>
@@ -331,7 +326,7 @@
     }
     document.getElementById('forceUpdate')?.addEventListener('click', forceUpdate);
 
-    // Open assistant (single button)
+    // Open assistant
     document.getElementById('assistantBtn')?.addEventListener('click', ()=>{
       document.getElementById('chatPanel')?.classList.add('open');
       document.getElementById('chatInput')?.focus();
@@ -345,7 +340,7 @@
       document.getElementById('cashClose')?.addEventListener('click', ()=>{ if(bar) bar.style.display='none'; info?.classList.remove('open'); });
     })();
 
-    // ---- Photo source chooser + auto-run search ----
+    // Photo chooser
     (function(){
       const photoBtn = document.getElementById('photoBtn');
       const photoInput = document.getElementById('photoInput');
@@ -385,9 +380,6 @@
         if (typeof window.startPhotoSearch === 'function') {
           try { window.startPhotoSearch(file); } catch(e){}
         }
-        try {
-          document.dispatchEvent(new CustomEvent('ps:photo-selected', { detail: { file } }));
-        } catch(e){}
       });
     })();
   </script>
@@ -401,6 +393,6 @@
     }
   </script>
 
-  <script defer src="script.js?v=63"></script>
+  <script defer src="script.js?v=64"></script>
 </body>
 </html>
