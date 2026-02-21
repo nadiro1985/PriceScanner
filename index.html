@@ -16,7 +16,7 @@
   <!-- Icons & styles -->
   <link rel="icon" href="logo.svg?v=12">
   <link rel="mask-icon" href="logo.svg?v=12" color="#146EB4">
-  <link rel="stylesheet" href="styles.css?v=62">
+  <link rel="stylesheet" href="styles.css?v=63">
 
   <!-- PWA: manifest + iOS meta -->
   <link rel="manifest" href="/manifest.webmanifest">
@@ -66,7 +66,6 @@
   </script>
 
   <style>
-    /* Tight header + brand */
     .heroWrap{border-radius:12px;background:var(--card,#fff);overflow:hidden}
     .heroContent{padding:12px}
     .topBar{display:flex;align-items:center;gap:12px;margin-bottom:6px}
@@ -80,20 +79,27 @@
     .heroTitle{margin:4px 0 2px 0;font-size:34px;line-height:1.15;color:#146EB4;font-weight:800}
     .heroSub{margin:2px 0 10px 0;color:#111}
 
-    /* Red primary (AliExpress-like) */
     .btn-primary{background:#E11900;color:#fff;border:1px solid #b31200}
     .btn-primary:hover{filter:brightness(.97)}
 
-    /* Action bar replaces free typing search */
-    .actionBar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
-    .actionHint{font-size:13px;color:#334155}
+    /* Category buttons */
+    .catBar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .catBtn{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:999px;padding:.45rem .75rem;font-weight:800;cursor:pointer}
+    .catBtn:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
+
+    /* Action bar (Photo + Assistant) */
+    .actionBar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
     .actionPill{display:inline-flex;gap:8px;align-items:center;border:1px solid #e5e7eb;background:#f8fafc;border-radius:999px;padding:.35rem .65rem}
+    .actionHint{font-size:13px;color:#334155}
 
     /* Filters */
-    .filtersBar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:10px}
+    .filtersBar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px}
     .budgetWrap{display:flex;gap:8px;align-items:center}
     .input.small{padding:.5rem .6rem;font-size:14px;width:110px}
     .row.center{display:flex;justify-content:center;margin-top:12px}
+
+    /* Hide the free-typing search input but keep it for JS */
+    .hiddenSearch{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
 
     /* Cashback (advert only) */
     .cashbackBar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:space-between;background:#0ea5e9;color:#fff;border-radius:12px;padding:10px;margin:10px 0}
@@ -106,53 +112,7 @@
     .cashBullets{margin:8px 0 10px 18px}
     .cashBullets li{margin:.14rem 0}
 
-    /* Category dropdown bar */
-    .catNav{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
-    .dd{position:relative}
-    .ddBtn{
-      border:1px solid var(--border);
-      background:var(--surface);
-      color:var(--text);
-      border-radius:999px;
-      padding:.45rem .75rem;
-      font-weight:900;
-      cursor:pointer;
-    }
-    .ddBtn:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
-    .ddMenu{
-      position:absolute;
-      top:calc(100% + 8px);
-      left:0;
-      min-width:260px;
-      background:var(--surface);
-      border:1px solid var(--border);
-      box-shadow:var(--shadow);
-      border-radius:12px;
-      padding:10px;
-      display:none;
-      z-index:50;
-    }
-    .dd.open .ddMenu{display:block}
-    .ddTitle{font-weight:900;color:#146EB4;margin:4px 6px 8px 6px}
-    .ddItem{
-      width:100%;
-      text-align:left;
-      border:1px solid transparent;
-      background:transparent;
-      color:var(--text);
-      padding:8px 10px;
-      border-radius:10px;
-      cursor:pointer;
-      font-weight:700;
-    }
-    .ddItem:hover{background:var(--surface-2);border-color:var(--border)}
-    .ddDivider{height:1px;background:var(--border);margin:8px 0}
-
-    /* Hidden search input (kept for script.js pipeline) */
-    .hiddenSearch{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
-
-    /* Assistant */
-    .chat-fab{position:fixed;right:16px;bottom:16px;z-index:70;display:inline-flex;align-items:center;gap:8px;background:#146EB4;color:#fff;border:1px solid #0f5790;padding:.7rem 1rem;border-radius:999px;box-shadow:0 6px 16px rgba(0,0,0,.18);font-weight:800}
+    /* Assistant overlay (kept) */
     .chat-panel{position:fixed;inset:0;display:none;z-index:60}
     .chat-panel.open{display:flex}
     .chat-bg{position:absolute;inset:0;background:rgba(0,0,0,.35)}
@@ -176,7 +136,6 @@
       </div>
     </section>
 
-    <!-- Info expands/collapses; no signup form; no network calls -->
     <section id="cashInfo" class="cashInfo" aria-live="polite">
       <h3 style="margin:0 0 6px 0;color:#146EB4;font-weight:900">How cashback will work</h3>
       <ul class="cashBullets">
@@ -217,94 +176,35 @@
         </div>
 
         <h1 id="tagline" class="heroTitle">Compare Home Security Prices</h1>
-        <p class="heroSub">Use the Shopping Assistant, Photo Search, or Categories to find cameras, doorbells, smart locks, alarms, sensors and accessories.</p>
+        <p class="heroSub">Pick a category to browse. Use Photo Search or the Shopping Assistant to refine results inside the category.</p>
 
         <!-- Hidden search input kept for script.js pipeline -->
         <input id="search" class="hiddenSearch" aria-hidden="true" tabindex="-1">
 
-        <!-- Photo input (hidden) -->
-        <input id="photoInput" type="file" accept="image/*" hidden>
+        <!-- Quick categories (simple buttons like before) -->
+        <div class="catBar" role="navigation" aria-label="Home security categories">
+          <button class="catBtn" type="button" data-q="outdoor security camera">Outdoor Cameras</button>
+          <button class="catBtn" type="button" data-q="indoor security camera">Indoor Cameras</button>
+          <button class="catBtn" type="button" data-q="poe security camera">PoE Cameras</button>
+          <button class="catBtn" type="button" data-q="video doorbell">Video Doorbells</button>
+          <button class="catBtn" type="button" data-q="smart lock">Smart Locks</button>
+          <button class="catBtn" type="button" data-q="home alarm system">Alarm Systems</button>
+          <button class="catBtn" type="button" data-q="motion sensor home security">Sensors</button>
+          <button class="catBtn" type="button" data-q="security camera accessories">Accessories</button>
+          <button class="catBtn" type="button" data-q="intercom system">Intercom</button>
+          <button class="catBtn" type="button" data-q="smart smoke detector">Smoke/CO</button>
+          <button class="catBtn" type="button" data-q="baby monitor camera">Baby Monitors</button>
+        </div>
 
-        <!-- Action bar (no free typing) -->
+        <!-- Photo + Assistant (below categories) -->
         <div class="actionBar" role="group" aria-label="Search actions">
+          <input id="photoInput" type="file" accept="image/*" hidden>
           <button id="photoBtn" class="btn" type="button" title="Search by photo" aria-label="Search by photo">📷 Photo Search</button>
-          <button id="assistantBtn" class="btn btn-primary" type="button" aria-label="Use shopping assistant">🛍️ Use Shopping Assistant</button>
-          <span class="actionPill"><span class="actionHint">Tip:</span> click a category below to browse</span>
+          <button id="assistantBtn" class="btn btn-primary" type="button" aria-label="Open shopping assistant">🛍️ Shopping Assistant</button>
+          <span class="actionPill"><span class="actionHint">Tip:</span> Use the assistant to refine within the category</span>
         </div>
 
-        <!-- Category dropdown navigation -->
-        <div class="catNav" role="navigation" aria-label="Home security categories">
-
-          <div class="dd" data-dd>
-            <button class="ddBtn" type="button">Cameras ▾</button>
-            <div class="ddMenu" role="menu">
-              <div class="ddTitle">Cameras</div>
-              <button class="ddItem" type="button" data-q="outdoor security camera">Outdoor security cameras</button>
-              <button class="ddItem" type="button" data-q="indoor security camera">Indoor security cameras</button>
-              <button class="ddItem" type="button" data-q="poe security camera">PoE security cameras</button>
-              <button class="ddItem" type="button" data-q="floodlight security camera">Floodlight cameras</button>
-              <button class="ddItem" type="button" data-q="security camera system nvr kit">NVR kits / camera systems</button>
-              <div class="ddDivider"></div>
-              <button class="ddItem" type="button" data-q="security camera no subscription local storage">No-subscription cameras</button>
-            </div>
-          </div>
-
-          <div class="dd" data-dd>
-            <button class="ddBtn" type="button">Doorbells ▾</button>
-            <div class="ddMenu" role="menu">
-              <div class="ddTitle">Video Doorbells</div>
-              <button class="ddItem" type="button" data-q="video doorbell">Video doorbells</button>
-              <button class="ddItem" type="button" data-q="wireless video doorbell">Wireless video doorbells</button>
-              <button class="ddItem" type="button" data-q="video doorbell no subscription local storage">Doorbells without subscription</button>
-            </div>
-          </div>
-
-          <div class="dd" data-dd>
-            <button class="ddBtn" type="button">Smart Locks ▾</button>
-            <div class="ddMenu" role="menu">
-              <div class="ddTitle">Smart Locks</div>
-              <button class="ddItem" type="button" data-q="smart lock">Smart locks</button>
-              <button class="ddItem" type="button" data-q="fingerprint smart lock">Fingerprint smart locks</button>
-              <button class="ddItem" type="button" data-q="keypad deadbolt smart lock">Keypad deadbolt locks</button>
-            </div>
-          </div>
-
-          <div class="dd" data-dd>
-            <button class="ddBtn" type="button">Alarm & Sensors ▾</button>
-            <div class="ddMenu" role="menu">
-              <div class="ddTitle">Alarm & Sensors</div>
-              <button class="ddItem" type="button" data-q="home alarm system">Home alarm systems</button>
-              <button class="ddItem" type="button" data-q="motion sensor home security">Motion sensors</button>
-              <button class="ddItem" type="button" data-q="door sensor home security">Door/window sensors</button>
-              <button class="ddItem" type="button" data-q="security siren alarm">Sirens</button>
-            </div>
-          </div>
-
-          <div class="dd" data-dd>
-            <button class="ddBtn" type="button">Accessories ▾</button>
-            <div class="ddMenu" role="menu">
-              <div class="ddTitle">Accessories</div>
-              <button class="ddItem" type="button" data-q="security camera mount bracket">Mounts & brackets</button>
-              <button class="ddItem" type="button" data-q="micro sd card security camera">Micro SD cards</button>
-              <button class="ddItem" type="button" data-q="security camera power adapter cable">Power adapters & cables</button>
-              <button class="ddItem" type="button" data-q="solar panel for security camera">Solar panels</button>
-            </div>
-          </div>
-
-          <div class="dd" data-dd>
-            <button class="ddBtn" type="button">Other ▾</button>
-            <div class="ddMenu" role="menu">
-              <div class="ddTitle">Other</div>
-              <button class="ddItem" type="button" data-q="intercom system">Intercom systems</button>
-              <button class="ddItem" type="button" data-q="baby monitor camera">Baby monitors</button>
-              <button class="ddItem" type="button" data-q="smart smoke detector">Smoke detectors</button>
-              <button class="ddItem" type="button" data-q="carbon monoxide detector smart">CO detectors</button>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- Filters (still apply to results) -->
+        <!-- Filters -->
         <div class="filtersBar" role="group" aria-label="Filters">
           <div class="budgetWrap" aria-label="Budget filter">
             <input id="minPrice" class="input small" type="number" min="0" step="1" placeholder="Min">
@@ -355,10 +255,7 @@
     </div>
   </footer>
 
-  <!-- Floating Chat Assistant (with label) -->
-  <button id="chatFab" class="chat-fab" aria-label="Open shopping assistant">🛍️ Shopping Assistant</button>
-
-  <!-- Chat overlay -->
+  <!-- SINGLE Shopping Assistant overlay (kept) -->
   <div id="chatPanel" class="chat-panel" aria-live="polite" aria-label="Shopping assistant">
     <div class="chat-bg" id="chatBg"></div>
     <div class="chat-box">
@@ -374,7 +271,7 @@
     </div>
   </div>
 
-  <!-- Photo source choice (new) -->
+  <!-- Photo source choice -->
   <div id="photoChoice" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:80; align-items:center; justify-content:center;" role="dialog" aria-modal="true" aria-labelledby="pcTitle">
     <div style="background:#fff; padding:16px; border-radius:12px; width:90%; max-width:420px">
       <h3 id="pcTitle" style="margin:0 0 8px 0; font-weight:800; color:#146EB4">Use a photo</h3>
@@ -417,7 +314,7 @@
       if(cfg && cfg.name){ document.getElementById('brandFooter').textContent = cfg.name; }
     })();
 
-    // Force update handler (clears caches + SW and reloads with fresh ?v=)
+    // Force update handler
     async function forceUpdate(){
       try{
         if('caches' in window){
@@ -435,49 +332,19 @@
     }
     document.getElementById('forceUpdate')?.addEventListener('click', forceUpdate);
 
-    // Dropdown open/close behavior (stays open until click outside / ESC)
-    (function(){
-      const dds = Array.from(document.querySelectorAll('[data-dd]'));
-      function closeAll(){ dds.forEach(d => d.classList.remove('open')); }
-
-      dds.forEach(dd=>{
-        const btn = dd.querySelector('.ddBtn');
-        btn?.addEventListener('click', (e)=>{
-          e.preventDefault();
-          const isOpen = dd.classList.contains('open');
-          closeAll();
-          if (!isOpen) dd.classList.add('open');
-        });
-      });
-
-      document.addEventListener('click', (e)=>{
-        const inside = e.target.closest && e.target.closest('[data-dd]');
-        if (!inside) closeAll();
-      });
-
-      document.addEventListener('keydown', (e)=>{
-        if (e.key === 'Escape') closeAll();
-      });
-
-      // Category item triggers search pipeline (uses hidden #search input)
-      document.querySelectorAll('.ddItem').forEach(item=>{
-        item.addEventListener('click', ()=>{
-          const q = item.getAttribute('data-q') || '';
-          const input = document.getElementById('search');
-          if (input) {
-            input.value = q;
-            input.dispatchEvent(new Event('input', { bubbles: true }));
-          }
-          closeAll();
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        });
-      });
-    })();
-
-    // Open assistant button
+    // Open assistant (single button)
     document.getElementById('assistantBtn')?.addEventListener('click', ()=>{
-      document.getElementById('chatFab')?.click();
+      document.getElementById('chatPanel')?.classList.add('open');
+      document.getElementById('chatInput')?.focus();
     });
+
+    // Cashback toggle
+    (function(){
+      const bar = document.getElementById('cashBar');
+      const info = document.getElementById('cashInfo');
+      document.getElementById('cashLearn')?.addEventListener('click', ()=> info?.classList.toggle('open'));
+      document.getElementById('cashClose')?.addEventListener('click', ()=>{ if(bar) bar.style.display='none'; info?.classList.remove('open'); });
+    })();
 
     // ---- Photo source chooser + auto-run search ----
     (function(){
@@ -496,7 +363,6 @@
       pc?.addEventListener('click', (e)=>{ if(e.target === pc) closePhotoChoice(); });
       document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closePhotoChoice(); });
 
-      // Take photo -> force camera by adding capture
       pcTake?.addEventListener('click', function(){
         if (!photoInput) return;
         photoInput.setAttribute('capture', 'environment');
@@ -505,7 +371,6 @@
         photoInput.click();
       });
 
-      // Upload from device -> ensure capture is off
       pcUpload?.addEventListener('click', function(){
         if (!photoInput) return;
         photoInput.removeAttribute('capture');
@@ -514,30 +379,17 @@
         photoInput.click();
       });
 
-      // Auto-run search when a file is selected
       photoInput?.addEventListener('change', function(){
         const file = photoInput.files && photoInput.files[0];
         if (!file) return;
-
-        // Reset capture so next time we always show the choice first
         photoInput.removeAttribute('capture');
-
         if (typeof window.startPhotoSearch === 'function') {
           try { window.startPhotoSearch(file); } catch(e){}
         }
-
         try {
           document.dispatchEvent(new CustomEvent('ps:photo-selected', { detail: { file } }));
         } catch(e){}
       });
-    })();
-
-    // Cashback info toggle
-    (function(){
-      const bar = document.getElementById('cashBar');
-      const info = document.getElementById('cashInfo');
-      document.getElementById('cashLearn')?.addEventListener('click', ()=> info?.classList.toggle('open'));
-      document.getElementById('cashClose')?.addEventListener('click', ()=>{ if(bar) bar.style.display='none'; info?.classList.remove('open'); });
     })();
   </script>
 
@@ -550,7 +402,6 @@
     }
   </script>
 
-  <!-- IMPORTANT: keep script.js a JS file (not HTML). -->
-  <script defer src="script.js?v=62"></script>
+  <script defer src="script.js?v=63"></script>
 </body>
 </html>
