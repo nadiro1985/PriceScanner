@@ -364,6 +364,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   // cashback + signup kept outside script (in index.html), just load FX here
   await loadRates();
 
-  // Start with no category selected (empty grid)
-  render();
+ // Start with first category by default
+const defaultCategory = "outdoor security camera";   // 👈 first category
+await runCategorySearch(defaultCategory);
 });
