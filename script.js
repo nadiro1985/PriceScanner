@@ -368,3 +368,6 @@ window.addEventListener('DOMContentLoaded', async ()=>{
 const defaultCategory = "outdoor security camera";   // 👈 first category
 await runCategorySearch(defaultCategory);
 });
+// Highlight first category button
+const firstBtn = document.querySelector('.catBtn[data-q="outdoor security camera"]');
+if (firstBtn) firstBtn.classList.add('active');
