@@ -192,3 +192,7 @@ body{
 }
 /* Force-hide any old floating assistant button */
 .chat-fab{display:none !important;}
+.catBtn.active {
+  background:#146EB4;
+  color:#fff;
+}
