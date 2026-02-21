@@ -70,7 +70,7 @@ body{
 
 /* ✅ UPDATED: Make logo bigger */
 .brandLogo{
-  width:120px !important;
+  width:100px !important;
   height:auto !important;
   max-width:none !important;
 }
@@ -240,7 +240,7 @@ body{
 
   /* ✅ Smaller logo on mobile */
   .brandLogo{
-    width:110px;
+    width:80px;
   }
 }
 
