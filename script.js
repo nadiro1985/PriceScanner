@@ -28,7 +28,7 @@ const vendorLimits = { "AliExpress": 40, "eBay": 50, "Amazon": 20 };
 // UI state
 let currency    = "SGD";
 let sortBy      = "priceAsc";
-let query       = "";             // current category query (only set by category click)
+let query       = "";             // current category query
 let userCountry = "US";
 let maxShipDays = "";
 let fx          = { base:"USD", rates:{ USD:1 }, at:0 };
@@ -37,7 +37,7 @@ let theme       = localStorage.getItem('ps.theme') || (matchMedia('(prefers-colo
 
 let minPriceVal = null, maxPriceVal = null;
 
-// NEW: local keyword filter (client-side only)
+// local keyword filter (client-side only)
 let localFilterText = "";
 
 // results store
@@ -83,7 +83,10 @@ async function loadRates() {
     const cached = JSON.parse(localStorage.getItem('ps.fx')||'null');
     if (cached && (Date.now()-cached.at) < 12*60*60*1000) { fx=cached; return; }
     const r = await fetch("https://api.frankfurter.app/latest?from=USD",{cache:"no-store"});
-    const d = await r.json(); const rates=d.rates||{}; rates.USD=1; fx={base:"USD",rates,at:Date.now()};
+    const d = await r.json();
+    const rates=d.rates||{};
+    rates.USD=1;
+    fx={base:"USD",rates,at:Date.now()};
     localStorage.setItem('ps.fx', JSON.stringify(fx));
   }catch(e){
     const cached = JSON.parse(localStorage.getItem('ps.fx')||'null');
@@ -144,13 +147,14 @@ function isHomeSecurityResult(item){
   if(!title) return false;
   if (hasAny(title, HARD_BLOCK)) return false;
   if (title.includes("dashcam") || title.includes("dash cam")) return false;
-  // must include at least one keyword
   return HOME_KEYWORDS.some(k => title.includes(k));
 }
 
 // loaders
 async function loadVendor(vendor, {append=false, page=1}={}){
-  const def = vendorDefs.find(v => v.name === vendor); if (!def) return;
+  const def = vendorDefs.find(v => v.name === vendor);
+  if (!def) return;
+
   const term=(query||"").trim();
   if(!enabled.includes(vendor) || !WORKER_BASE || !term) return;
 
@@ -174,7 +178,6 @@ async function loadVendor(vendor, {append=false, page=1}={}){
       vendor
     }));
 
-    // strict filter
     arr = arr.filter(isHomeSecurityResult);
 
     if (append) offersByVendor[vendor] = (offersByVendor[vendor]||[]).concat(arr);
@@ -217,7 +220,7 @@ function currentResults(){
   if (sortBy==='priceDesc') base.sort((a,b)=> priceInSelected(b) - priceInSelected(a));
   if (sortBy==='rating')    base.sort((a,b)=> (b.rating||4.2) - (a.rating||4.2));
 
-  // de-dup by title|vendor; keep better price
+  // de-dup
   const m=new Map();
   for(const o of base){
     const k=((o.title||'')+'|'+o.vendor).toLowerCase();
@@ -230,7 +233,8 @@ function currentResults(){
 // render
 function render(){
   const data = currentResults();
-  const grid = $('#grid'); if(!grid) return;
+  const grid = $('#grid');
+  if(!grid) return;
   grid.innerHTML='';
 
   data.forEach(item=>{
@@ -266,9 +270,9 @@ function render(){
     grid.appendChild(card);
   });
 
+  // More results button
   const moreBtn = $('#moreBtn');
   if (moreBtn) {
-    // show More only after a category search exists
     const hasCategory = query.trim().length > 0;
     moreBtn.style.display = hasCategory ? 'inline-flex' : 'none';
     moreBtn.disabled = hasCategory ? (data.length === 0) : true;
@@ -276,11 +280,17 @@ function render(){
     moreBtn.style.pointerEvents = moreBtn.disabled ? 'none' : 'auto';
   }
 
-  // update hint
+  // hint
   const hint = $('#localFilterHint');
   if (hint) {
     hint.textContent = query.trim() ? `Filtering inside: ${query}` : 'Select a category first.';
   }
+}
+
+// set active category UI
+function setActiveCategory(btn){
+  document.querySelectorAll('.catBtn.active').forEach(b=> b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
 }
 
 // category search
@@ -295,7 +305,7 @@ async function runCategorySearch(catQuery){
   Object.keys(vendorPages).forEach(k=> vendorPages[k]=1);
   LIVE_VENDORS.forEach(v=> offersByVendor[v] = []);
 
-  // clear local filter field when category changes (you can remove this if you prefer)
+  // clear local filter on category change
   localFilterText = "";
   const lf = $('#localFilter');
   if (lf) lf.value = "";
@@ -311,7 +321,10 @@ window.addEventListener('DOMContentLoaded', async ()=>{
 
   // language/currency/sort/ship
   const selLang=$('#lang');
-  if(selLang){ selLang.value=lang; selLang.onchange=()=>{ lang=selLang.value; localStorage.setItem('ps.lang',lang); render(); }; }
+  if(selLang){
+    selLang.value=lang;
+    selLang.onchange=()=>{ lang=selLang.value; localStorage.setItem('ps.lang',lang); render(); };
+  }
 
   $('#currency')?.addEventListener('change',(e)=>{ currency=e.target.value; render(); });
   $('#sort')?.addEventListener('change',(e)=>{ sortBy=e.target.value; render(); });
@@ -332,20 +345,17 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     render();
   });
 
-  // category buttons (ONLY place that triggers store search)
+  // category buttons
   document.querySelectorAll('.catBtn').forEach(btn=>{
-  btn.addEventListener('click', async ()=>{
-    // remove highlight from all
-    document.querySelectorAll('.catBtn.active').forEach(b=> b.classList.remove('active'));
-    // highlight this one
-    btn.classList.add('active');
-
-    const q = btn.getAttribute('data-q') || '';
-    await runCategorySearch(q);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    btn.addEventListener('click', async ()=>{
+      setActiveCategory(btn);
+      const q = btn.getAttribute('data-q') || '';
+      await runCategorySearch(q);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
   });
-});
-  // More results (paged fetch for same category)
+
+  // More results
   $('#moreBtn')?.addEventListener('click', async ()=>{
     if (!query.trim()) { toast('Select a category first.'); return; }
 
@@ -365,14 +375,12 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     }
   });
 
-  // cashback + signup kept outside script (in index.html), just load FX here
+  // FX
   await loadRates();
 
- // Start with first category by default
-const defaultCategory = "outdoor security camera";   // 👈 first category
-await runCategorySearch(defaultCategory);
+  // Default category on load
+  const defaultCategory = "outdoor security camera";
+  const firstBtn = document.querySelector(`.catBtn[data-q="${defaultCategory}"]`);
+  setActiveCategory(firstBtn);
+  await runCategorySearch(defaultCategory);
 });
-// Highlight first category button
-const firstBtn = document.querySelector('.catBtn[data-q="outdoor security camera"]');
-if (firstBtn) firstBtn.classList.add('active');
-await runCategorySearch("outdoor security camera");
