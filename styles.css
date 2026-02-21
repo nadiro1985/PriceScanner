@@ -22,47 +22,89 @@
 
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
-body{font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial;
-  color:var(--text); background:var(--surface);}
+body{
+  font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial;
+  color:var(--text);
+  background:var(--surface);
+}
 
 .container{max-width:1200px;margin:0 auto}
 .pad{padding:24px 16px}
 .pad-b{padding:8px 16px 24px}
 
+/* HERO */
 .heroWrap{
-  position:relative;border-radius:18px;overflow:hidden;
+  position:relative;
+  border-radius:18px;
+  overflow:hidden;
   background:linear-gradient(135deg,#eef3ff, #f2faf5);
 }
 .heroContent{position:relative;padding:24px 16px}
 .topBar{display:flex;align-items:center;gap:12px;margin-bottom:12px}
 .logoWrap{display:flex;align-items:center;gap:10px}
 .brandLogo{display:block}
-.logoText{font-weight:800;font-size:20px;color:#111}
+.logoText{font-weight:800;font-size:20px;color:var(--text)}
 .topControls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .spacer{flex:1}
-.btn,.select,.input{border:1px solid var(--border);border-radius:12px; padding:.7rem .95rem; background:var(--surface); color:var(--text)}
+
+/* INPUTS / BUTTONS */
+.btn,.select,.input{
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:.7rem .95rem;
+  background:var(--surface);
+  color:var(--text);
+}
 .input.small,.select.small{padding:.45rem .6rem;border-radius:10px}
 .btn:hover{box-shadow:var(--shadow)}
 .btn-icon{border:1px solid var(--border);border-radius:10px;padding:.45rem .6rem;background:var(--surface)}
 .btn-primary{background:var(--brand-red);color:#fff;border-color:transparent}
 .btn-blue{background:var(--brand-blue);color:#fff;border-color:transparent}
-.searchBar{display:flex;gap:10px;align-items:center;margin-top:10px}
-.heroTitle{font-weight:900;font-size:44px;margin:6px 0;color:var(--brand-blue)}
-.heroSub{color:#111;max-width:900px;margin-top:6px}
 
+.searchBar{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  margin-top:10px;
+}
+.heroTitle{font-weight:900;font-size:44px;margin:6px 0;color:var(--brand-blue)}
+.heroSub{color:var(--text);max-width:900px;margin-top:6px}
+
+/* Category buttons row */
+.catBar{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:10px;
+}
+.catBtn{
+  border:1px solid var(--border);
+  background:var(--surface);
+  color:var(--text);
+  border-radius:999px;
+  padding:.45rem .75rem;
+  font-weight:800;
+  cursor:pointer;
+}
+.catBtn:hover{
+  box-shadow:var(--shadow);
+  transform:translateY(-1px);
+}
+
+/* FILTERS */
 .controlsRow{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:10px}
 .controlLabel{font-size:13px;color:var(--muted)}
 .budget{display:flex;align-items:center;gap:6px}
 .budget .dash{opacity:.6}
 .select{background:var(--surface)}
 
-.trustRow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px;font-size:13px}
-.trustBadge{border:1px solid var(--border);border-radius:999px;padding:6px 10px;background:#fff}
-
-.sourcesTitle{font-size:13px;color:var(--muted);margin-top:8px}
-
-.grid{display:grid;gap:14px;margin-top:12px;
-  grid-template-columns:repeat(auto-fill,minmax(220px,1fr))} /* 5–6 per row on desktop */
+/* GRID / CARDS */
+.grid{
+  display:grid;
+  gap:14px;
+  margin-top:12px;
+  grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+}
 
 .card{border:1px solid var(--border);border-radius:14px;background:var(--surface);overflow:hidden}
 .card-hover:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
@@ -73,39 +115,62 @@ body{font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Ne
 .price{font-size:22px;font-weight:900}
 .metaRow{display:flex;gap:8px;font-size:13px;margin-top:6px;flex-wrap:wrap}
 .badge{border:1px solid var(--border);border-radius:999px;padding:4px 9px;background:var(--surface-2)}
+
+/* vendor chips still useful on results */
 .badge.vendor[data-vendor="Amazon"]{border-color:#1877F2}
 .badge.vendor[data-vendor="eBay"]{border-color:#10B981}
 .badge.vendor[data-vendor="AliExpress"]{border-color:#E12424}
+
 .shipMeta{font-size:12px;color:var(--muted);margin-top:8px}
 .actions{display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:8px}
 .btn-mini{padding:.4rem .6rem;border-radius:10px}
 
-.sidebar{min-width:280px}
-.pad-sm{padding:16px}
-.sidebarTitle{font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase}
-.watchlist{display:flex;flex-direction:column;gap:10px}
-.thinBorder{border:1px solid rgba(0,0,0,.08)}
+/* Toast */
+.toast{
+  display:none;
+  position:fixed;
+  left:50%;
+  bottom:18px;
+  transform:translateX(-50%);
+  padding:10px 14px;
+  border-radius:10px;
+  background:rgba(0,0,0,.8);
+  color:#fff;
+  z-index:40;
+}
 
-.toast{display:none;position:fixed;left:50%;bottom:18px;transform:translateX(-50%);
-  padding:10px 14px;border-radius:10px;background:rgba(0,0,0,.8);color:#fff;z-index:40}
-
+/* Footer */
 .footer{padding:18px 0;border-top:1px solid var(--border);background:var(--surface)}
 .footerInner{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
 .footerLinks{display:flex;gap:12px;font-size:14px}
 
-/* Dropdown (sources) */
-.sourceFilter{position:relative}
-.dropdown-btn{border:1px solid var(--border);border-radius:12px;background:var(--surface);padding:.6rem .8rem}
-.dropdown-menu{position:absolute;z-index:30;top:calc(100% + 8px);left:0;min-width:260px;
-  background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow);border-radius:12px;padding:10px}
-.dropdown-menu .check{display:flex;align-items:center;gap:8px;padding:6px 4px;font-size:14px}
-.dropdown-menu .divider{height:1px;background:var(--border);margin:6px 0}
-
 /* Chat */
-.chat-fab{position:fixed;right:18px;bottom:18px;border:0;border-radius:999px;padding:.8rem 1rem;
-  background:var(--brand-blue);color:#fff;box-shadow:var(--shadow);z-index:40}
-.chat-panel{position:fixed;right:18px;bottom:82px;width:340px;max-height:70vh;display:flex;flex-direction:column;
-  border:1px solid var(--border);border-radius:14px;background:var(--surface);box-shadow:var(--shadow);z-index:40}
+.chat-fab{
+  position:fixed;
+  right:18px;
+  bottom:18px;
+  border:0;
+  border-radius:999px;
+  padding:.8rem 1rem;
+  background:var(--brand-blue);
+  color:#fff;
+  box-shadow:var(--shadow);
+  z-index:40;
+}
+.chat-panel{
+  position:fixed;
+  right:18px;
+  bottom:82px;
+  width:340px;
+  max-height:70vh;
+  display:flex;
+  flex-direction:column;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:var(--surface);
+  box-shadow:var(--shadow);
+  z-index:40;
+}
 .chat-head{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border)}
 .chat-title{font-weight:800}
 .chat-messages{overflow:auto;padding:10px;display:flex;flex-direction:column;gap:8px}
@@ -118,3 +183,10 @@ body{font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Ne
 
 .moreWrap{display:flex;justify-content:center;margin-top:12px}
 .sr-only{position:absolute;left:-9999px}
+
+/* Small screens */
+@media (max-width: 520px){
+  .heroTitle{font-size:34px}
+  .searchBar{flex-wrap:wrap}
+  .chat-panel{right:10px;left:10px;width:auto}
+}
