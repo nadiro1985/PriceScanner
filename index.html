@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
 
   <!-- Primary SEO -->
-  <title>PriceScanner — Compare Home Security Device Prices</title>
-  <meta name="description" content="Compare prices for home security cameras, video doorbells, smart locks, alarms, sensors and accessories across top stores.">
-  <meta name="keywords" content="home security price comparison, security camera prices, video doorbell deals, smart lock prices, alarm system comparison, Amazon, eBay, AliExpress">
+  <title>PriceScanner — Deal Fast. Best Price.</title>
+  <meta name="description" content="Deal fast with the best price on home security devices.">
+  <meta name="keywords" content="home security price comparison, security camera prices, video doorbell deals, smart lock prices, alarm system comparison">
   <meta name="robots" content="index,follow">
   <meta name="theme-color" content="#146EB4">
   <link rel="canonical" href="https://www.thepricescanner.com/">
@@ -16,7 +16,7 @@
   <!-- Icons & styles -->
   <link rel="icon" href="logo.svg?v=12">
   <link rel="mask-icon" href="logo.svg?v=12" color="#146EB4">
-  <link rel="stylesheet" href="styles.css?v=64">
+  <link rel="stylesheet" href="styles.css?v=65">
 
   <!-- PWA -->
   <link rel="manifest" href="/manifest.webmanifest">
@@ -26,8 +26,8 @@
   <link rel="apple-touch-icon" href="/icons/icon-180.png">
 
   <!-- Open Graph -->
-  <meta property="og:title" content="PriceScanner — Compare Home Security Device Prices">
-  <meta property="og:description" content="Find the best deal on home security devices — compare prices across trusted stores in seconds.">
+  <meta property="og:title" content="PriceScanner — Deal Fast. Best Price.">
+  <meta property="og:description" content="Deal fast with the best price on home security devices.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://www.thepricescanner.com/">
   <meta property="og:site_name" content="PriceScanner">
@@ -37,33 +37,9 @@
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="PriceScanner — Compare Home Security Device Prices">
-  <meta name="twitter:description" content="Find the best deal on home security devices — compare prices across trusted stores in seconds.">
+  <meta name="twitter:title" content="PriceScanner — Deal Fast. Best Price.">
+  <meta name="twitter:description" content="Deal fast with the best price on home security devices.">
   <meta name="twitter:image" content="https://www.thepricescanner.com/og-1200x630.png">
-
-  <!-- Structured Data -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    "name": "PriceScanner",
-    "url": "https://www.thepricescanner.com/",
-    "potentialAction": {
-      "@type": "SearchAction",
-      "target": "https://www.thepricescanner.com/?q={search_term_string}",
-      "query-input": "required name=search_term_string"
-    }
-  }
-  </script>
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    "name": "PriceScanner",
-    "url": "https://www.thepricescanner.com/",
-    "logo": "https://www.thepricescanner.com/logo.svg"
-  }
-  </script>
 
   <style>
     .heroWrap{border-radius:12px;background:var(--card,#fff);overflow:hidden}
@@ -82,21 +58,20 @@
     .btn-primary{background:#E11900;color:#fff;border:1px solid #b31200}
     .btn-primary:hover{filter:brightness(.97)}
 
-    /* Category buttons (NO dropdown) */
+    /* Category buttons */
     .catBar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
     .catBtn{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:999px;padding:.45rem .75rem;font-weight:800;cursor:pointer}
     .catBtn:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
 
-    /* Action bar (Photo + Assistant only) */
-    .actionBar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
+    /* Local filter (client-side only) */
+    .localFilterRow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
+    .localFilterHint{font-size:13px;color:#334155}
+    .localFilterInput{flex:1 1 360px}
 
     /* Filters */
     .filtersBar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px}
     .budgetWrap{display:flex;gap:8px;align-items:center}
     .input.small{padding:.5rem .6rem;font-size:14px;width:110px}
-
-    /* Hide free typing input but keep it for JS */
-    .hiddenSearch{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
 
     /* Cashback */
     .cashbackBar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:space-between;background:#0ea5e9;color:#fff;border-radius:12px;padding:10px;margin:10px 0}
@@ -109,14 +84,7 @@
     .cashBullets{margin:8px 0 10px 18px}
     .cashBullets li{margin:.14rem 0}
 
-    /* Assistant overlay (single) */
-    .chat-panel{position:fixed;inset:0;display:none;z-index:60}
-    .chat-panel.open{display:flex}
-    .chat-bg{position:absolute;inset:0;background:rgba(0,0,0,.35)}
-    .chat-box{position:relative;z-index:1;margin:auto;background:var(--card,#fff);border-radius:12px;max-width:420px;width:92%;display:flex;flex-direction:column;max-height:80vh}
-    .footerRight{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-
-    /* Safety: if any old floating assistant exists, hide it */
+    /* Safety: hide any old floating assistant if cached somewhere */
     .chat-fab{display:none !important;}
   </style>
 </head>
@@ -175,13 +143,10 @@
           </div>
         </div>
 
-        <h1 id="tagline" class="heroTitle">Compare Home Security Devices</h1>
-        <p class="heroSub">Find the best deal fast — browse by category, then refine with Photo Search or the Shopping Assistant.</p>
+        <h1 id="tagline" class="heroTitle">Deal Fast. Best Price.</h1>
+        <p class="heroSub">Home security devices.</p>
 
-        <!-- Hidden search input kept for JS -->
-        <input id="search" class="hiddenSearch" aria-hidden="true" tabindex="-1">
-
-        <!-- Categories (NO dropdown, NO “Other”) -->
+        <!-- Categories -->
         <div class="catBar" role="navigation" aria-label="Home security categories">
           <button class="catBtn" type="button" data-q="outdoor security camera">Outdoor Cameras</button>
           <button class="catBtn" type="button" data-q="indoor security camera">Indoor Cameras</button>
@@ -191,14 +156,13 @@
           <button class="catBtn" type="button" data-q="security camera accessories">Accessories</button>
         </div>
 
-        <!-- Actions under categories -->
-        <div class="actionBar" role="group" aria-label="Search actions">
-          <input id="photoInput" type="file" accept="image/*" hidden>
-          <button id="photoBtn" class="btn" type="button" title="Search by photo" aria-label="Search by photo">📷 Photo Search</button>
-          <button id="assistantBtn" class="btn btn-primary" type="button" aria-label="Open shopping assistant">🛍️ Shopping Assistant</button>
+        <!-- Local keyword filter (filters current category results only) -->
+        <div class="localFilterRow" role="search" aria-label="Filter results">
+          <input id="localFilter" class="input localFilterInput" placeholder="Filter results by brand / model / feature (no new search)" aria-label="Filter results">
+          <span class="localFilterHint" id="localFilterHint">Select a category first.</span>
         </div>
 
-        <!-- Filters -->
+        <!-- Filters (still apply to displayed results) -->
         <div class="filtersBar" role="group" aria-label="Filters">
           <div class="budgetWrap" aria-label="Budget filter">
             <input id="minPrice" class="input small" type="number" min="0" step="1" placeholder="Min">
@@ -249,63 +213,20 @@
     </div>
   </footer>
 
-  <!-- SINGLE Shopping Assistant overlay -->
-  <div id="chatPanel" class="chat-panel" aria-live="polite" aria-label="Shopping assistant">
-    <div class="chat-bg" id="chatBg"></div>
-    <div class="chat-box">
-      <div class="chat-head">
-        <div class="chat-title">Shopping Assistant</div>
-        <button id="chatClose" class="btn-icon" type="button" aria-label="Close assistant">✕</button>
-      </div>
-      <div id="chatMessages" class="chat-messages"></div>
-      <form id="chatForm" class="chat-form" onsubmit="return false">
-        <input id="chatInput" class="input chat-input" placeholder="Tell me what you want (brand, model, budget, features)" aria-label="Describe your product">
-        <button id="chatSend" class="btn btn-primary" type="submit">Send</button>
-      </form>
-    </div>
-  </div>
-
-  <!-- Photo source choice -->
-  <div id="photoChoice" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:80; align-items:center; justify-content:center;" role="dialog" aria-modal="true" aria-labelledby="pcTitle">
-    <div style="background:#fff; padding:16px; border-radius:12px; width:90%; max-width:420px">
-      <h3 id="pcTitle" style="margin:0 0 8px 0; font-weight:800; color:#146EB4">Use a photo</h3>
-      <p style="margin:0 0 12px 0; color:#334155">Choose how you want to add your photo.</p>
-      <div style="display:flex; gap:8px; flex-wrap:wrap">
-        <button id="pcTake" class="btn btn-primary" type="button">Take photo</button>
-        <button id="pcUpload" class="btn" type="button">Upload from device</button>
-        <button id="pcClose" class="btn" type="button" style="margin-left:auto">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Signup / Verify Modal -->
-  <div id="signupModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); align-items:center; justify-content:center;"
-       role="dialog" aria-modal="true" aria-labelledby="suTitle">
-    <div style="background:#fff; padding:16px; border-radius:12px; width:90%; max-width:420px">
-      <h3 id="suTitle" style="margin:0 0 8px 0; font-weight:800;color:#146EB4">Create your account</h3>
-      <p id="signupStep1">
-        <label for="suEmail">Email</label><br>
-        <input id="suEmail" class="input" placeholder="you@example.com" autocomplete="email">
-        <button id="suSend" class="btn btn-primary" style="margin-top:8px">Send code</button>
-      </p>
-      <p id="signupStep2" style="display:none">
-        <label for="suCode">Verification code</label><br>
-        <input id="suCode" class="input" placeholder="6-digit code" inputmode="numeric" maxlength="6">
-        <button id="suVerify" class="btn btn-primary" style="margin-top:8px">Verify</button>
-      </p>
-      <p id="signupMsg" style="color:#64748b; font-size:13px; margin-top:8px"></p>
-      <div style="margin-top:12px; display:flex; gap:8px; justify-content:flex-end">
-        <button id="suClose" class="btn">Close</button>
-      </div>
-    </div>
-  </div>
-
   <script>
-    // Footer year and brand
     document.getElementById('year').textContent = new Date().getFullYear();
+
     (function(){
       const cfg = JSON.parse(localStorage.getItem('site.config')||"{}");
       if(cfg && cfg.name){ document.getElementById('brandFooter').textContent = cfg.name; }
+    })();
+
+    // Cashback toggle
+    (function(){
+      const bar = document.getElementById('cashBar');
+      const info = document.getElementById('cashInfo');
+      document.getElementById('cashLearn')?.addEventListener('click', ()=> info?.classList.toggle('open'));
+      document.getElementById('cashClose')?.addEventListener('click', ()=>{ if(bar) bar.style.display='none'; info?.classList.remove('open'); });
     })();
 
     // Force update handler
@@ -325,74 +246,8 @@
       location.replace(u.toString());
     }
     document.getElementById('forceUpdate')?.addEventListener('click', forceUpdate);
-
-    // Open assistant
-    document.getElementById('assistantBtn')?.addEventListener('click', ()=>{
-      document.getElementById('chatPanel')?.classList.add('open');
-      document.getElementById('chatInput')?.focus();
-    });
-
-    // Cashback toggle
-    (function(){
-      const bar = document.getElementById('cashBar');
-      const info = document.getElementById('cashInfo');
-      document.getElementById('cashLearn')?.addEventListener('click', ()=> info?.classList.toggle('open'));
-      document.getElementById('cashClose')?.addEventListener('click', ()=>{ if(bar) bar.style.display='none'; info?.classList.remove('open'); });
-    })();
-
-    // Photo chooser
-    (function(){
-      const photoBtn = document.getElementById('photoBtn');
-      const photoInput = document.getElementById('photoInput');
-      const pc = document.getElementById('photoChoice');
-      const pcTake = document.getElementById('pcTake');
-      const pcUpload = document.getElementById('pcUpload');
-      const pcClose = document.getElementById('pcClose');
-
-      function openPhotoChoice(){ pc.style.display = 'flex'; }
-      function closePhotoChoice(){ pc.style.display = 'none'; }
-
-      photoBtn?.addEventListener('click', openPhotoChoice);
-      pcClose?.addEventListener('click', closePhotoChoice);
-      pc?.addEventListener('click', (e)=>{ if(e.target === pc) closePhotoChoice(); });
-      document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closePhotoChoice(); });
-
-      pcTake?.addEventListener('click', function(){
-        if (!photoInput) return;
-        photoInput.setAttribute('capture', 'environment');
-        photoInput.setAttribute('accept', 'image/*');
-        closePhotoChoice();
-        photoInput.click();
-      });
-
-      pcUpload?.addEventListener('click', function(){
-        if (!photoInput) return;
-        photoInput.removeAttribute('capture');
-        photoInput.setAttribute('accept', 'image/*');
-        closePhotoChoice();
-        photoInput.click();
-      });
-
-      photoInput?.addEventListener('change', function(){
-        const file = photoInput.files && photoInput.files[0];
-        if (!file) return;
-        photoInput.removeAttribute('capture');
-        if (typeof window.startPhotoSearch === 'function') {
-          try { window.startPhotoSearch(file); } catch(e){}
-        }
-      });
-    })();
   </script>
 
-  <!-- PWA: register service worker -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function () {
-        navigator.serviceWorker.register('/sw.js').catch(() => {});
-      });
-    }
-  </script>
-
-  <script defer src="script.js?v=64"></script>
+  <script defer src="script.js?v=65"></script>
 </body>
 </html>
