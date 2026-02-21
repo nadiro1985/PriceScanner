@@ -35,57 +35,50 @@ body{
 /* HERO */
 .heroWrap{
   position:relative;
-  border-radius:12px;
+  border-radius:18px;
   overflow:hidden;
 
-  /* Background image */
-  background-image: url("hero-security.jpg");
-  background-size: cover;        /* Fill entire section */
-  background-position: center;   /* Center image */
-  background-repeat: no-repeat;
-  min-height: 500px;             /* Adjust height if needed */
+  /* ✅ Background image */
+  background: url("/hero-security.jpg") center center / cover no-repeat;
+
+  /* Ensure hero has height so image shows */
+  min-height: 420px;
 }
 
-/* Dark overlay for readability */
+/* ✅ Overlay for readability */
 .heroWrap::before{
   content:"";
   position:absolute;
   inset:0;
-  background:linear-gradient(
+  background: linear-gradient(
     to right,
-    rgba(0,0,0,0.65),
-    rgba(0,0,0,0.35)
+    rgba(0,0,0,0.55),
+    rgba(0,0,0,0.25)
   );
   z-index:0;
 }
 
-/* Ensure content sits above overlay */
+/* Put content above overlay */
 .heroContent{
   position:relative;
   z-index:1;
-  color:#ffffff;
+  padding:24px 16px;
 }
 
-/* Improve text visibility */
-.heroTitle{
-  color:#ffffff !important;
-}
-
-.heroSub{
-  color:#e5e7eb !important;
-}
-.heroContent{position:relative;padding:24px 16px}
 .topBar{display:flex;align-items:center;gap:12px;margin-bottom:12px}
 .logoWrap{display:flex;align-items:center;gap:10px}
 .brandLogo{display:block}
-.logoText{font-weight:800;font-size:20px;color:var(--text)}
+
+/* ✅ Make logo text readable on image */
+.logoText{font-weight:800;font-size:20px;color:#fff}
+
 .topControls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .spacer{flex:1}
 
 /* INPUTS / BUTTONS */
 .btn,.select,.input{
   border:1px solid var(--border);
-  border-radius:0;
+  border-radius:12px;
   padding:.7rem .95rem;
   background:var(--surface);
   color:var(--text);
@@ -102,8 +95,21 @@ body{
   align-items:center;
   margin-top:10px;
 }
-.heroTitle{font-weight:900;font-size:44px;margin:6px 0;color:var(--brand-blue)}
-.heroSub{color:var(--text);max-width:900px;margin-top:6px}
+
+/* ✅ Headline and subtitle readable on image */
+.heroTitle{
+  font-weight:900;
+  font-size:44px;
+  margin:6px 0;
+  color:#ffffff;
+  text-shadow: 0 2px 16px rgba(0,0,0,.35);
+}
+.heroSub{
+  color:#e5e7eb;
+  max-width:900px;
+  margin-top:6px;
+  text-shadow: 0 2px 14px rgba(0,0,0,.30);
+}
 
 /* Category buttons row */
 .catBar{
@@ -114,8 +120,8 @@ body{
 }
 .catBtn{
   border:1px solid var(--border);
-  background:var(--surface);
-  color:var(--text);
+  background:rgba(255,255,255,.92);
+  color:#111827;
   border-radius:999px;
   padding:.45rem .75rem;
   font-weight:800;
@@ -128,7 +134,7 @@ body{
 
 /* FILTERS */
 .controlsRow{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:10px}
-.controlLabel{font-size:13px;color:var(--muted)}
+.controlLabel{font-size:13px;color:#e5e7eb}
 .budget{display:flex;align-items:center;gap:6px}
 .budget .dash{opacity:.6}
 .select{background:var(--surface)}
@@ -179,7 +185,7 @@ body{
 .footerInner{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
 .footerLinks{display:flex;gap:12px;font-size:14px}
 
-/* Chat */
+/* Chat (kept, but hidden) */
 .chat-fab{
   position:fixed;
   right:18px;
@@ -224,10 +230,15 @@ body{
   .heroTitle{font-size:34px}
   .searchBar{flex-wrap:wrap}
   .chat-panel{right:10px;left:10px;width:auto}
+  .heroWrap{min-height: 520px;}
 }
+
 /* Force-hide any old floating assistant button */
 .chat-fab{display:none !important;}
+
+/* Active category highlight */
 .catBtn.active {
   background:#146EB4;
   color:#fff;
+  border-color:#146EB4;
 }
