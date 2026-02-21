@@ -48,8 +48,12 @@ let fx          = { base:"USD", rates:{ USD:1 }, at:0 };
 let watches     = JSON.parse(localStorage.getItem('ps.watches')||"[]");
 let lang        = localStorage.getItem('ps.lang') || 'en';
 let theme       = localStorage.getItem('ps.theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+
 // Budget filter
 let minPriceVal = null, maxPriceVal = null;
+
+// NEW: current category context (set by category buttons)
+let currentCategory = null; // camera|doorbell|lock|alarm|sensors|accessories|other|null
 
 const offersByVendor = Object.fromEntries(vendorDefs.map(v => [v.name, []]));
 
@@ -445,7 +449,7 @@ function render(){
   }
 }
 
-/* ============ Photo Search & Chat Assistant ============ */
+/* ============ Photo Search & Assistant ============ */
 let mobilenetModel = null;
 function loadScript(src){
   return new Promise((resolve,reject)=>{
@@ -496,10 +500,9 @@ async function searchByPhoto(file){
     toast('Photo search failed. Try a clearer image.');
   }
 }
-// Expose for index.html photo chooser hook
 window.startPhotoSearch = searchByPhoto;
 
-// Chat assistant (open/close + reflect results to main grid)
+// Assistant open/close (single overlay)
 function openChat(){ const p=$('#chatPanel'); if(!p) return; p.classList.add('open'); $('#chatInput')?.focus(); }
 function closeChat(){ const p=$('#chatPanel'); if(!p) return; p.classList.remove('open'); }
 
@@ -528,48 +531,34 @@ function parseIntent(text){
   return { query: cleaned || msg, min, max };
 }
 
-function inferCategory(text){
-  const s = normalizeText(text);
-  if (!s) return null;
-
-  if (/(doorbell|ring doorbell|video doorbell)/i.test(s)) return "doorbell";
-  if (/(smart lock|deadbolt|keypad lock|fingerprint lock|door lock)/i.test(s)) return "lock";
-  if (/(alarm system|home alarm|siren|motion sensor|door sensor|window sensor|contact sensor|sensor)/i.test(s)) return "alarm";
-  if (/(mount|bracket|sd card|micro sd|adapter|power cable|solar panel|accessor)/i.test(s)) return "accessories";
-  if (/(intercom|smoke detector|carbon monoxide|co detector|baby monitor)/i.test(s)) return "other";
-  if (/(camera|cctv|nvr|dvr|poe|floodlight)/i.test(s)) return "camera";
-
-  // brand/model code: default to camera (most common)
-  if (hasAny(s, HOME_SECURITY_BRANDS) || looksLikeModelCode(s)) return "camera";
-
-  return null;
-}
-
 function categoryToQueryPrefix(cat){
   switch(cat){
     case "camera": return "security camera";
     case "doorbell": return "video doorbell";
     case "lock": return "smart lock";
     case "alarm": return "home alarm system";
+    case "sensors": return "home security sensor";
     case "accessories": return "security camera accessories";
     case "other": return "home security";
     default: return "home security";
   }
 }
 
-function quickButtons(title, buttons){
-  const btns = buttons.map(b => `<button class="btn btn-mini btn-primary ps-quick" type="button" data-quick="${b.value}">${b.label}</button>`).join(' ');
-  return `<div class="bot-text"><b>${title}</b></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${btns}</div>`;
-}
+function inferCategoryFromQuery(text){
+  const s = normalizeText(text);
+  if (!s) return null;
 
-// Assistant state machine
-const assistantState = {
-  stage: "idle",           // idle | need_category | need_budget
-  category: null,          // camera|doorbell|lock|alarm|accessories|other
-  pendingQuery: "",        // user query text
-  min: null,
-  max: null
-};
+  if (/(doorbell|video doorbell)/i.test(s)) return "doorbell";
+  if (/(smart lock|deadbolt|keypad lock|fingerprint lock|door lock)/i.test(s)) return "lock";
+  if (/(alarm system|home alarm|siren)/i.test(s)) return "alarm";
+  if (/(motion sensor|door sensor|window sensor|contact sensor|sensor)/i.test(s)) return "sensors";
+  if (/(mount|bracket|sd card|micro sd|adapter|power cable|solar panel|accessor)/i.test(s)) return "accessories";
+  if (/(intercom|smoke detector|carbon monoxide|co detector|baby monitor)/i.test(s)) return "other";
+  if (/(camera|cctv|nvr|dvr|poe|floodlight)/i.test(s)) return "camera";
+
+  if (hasAny(s, HOME_SECURITY_BRANDS) || looksLikeModelCode(s)) return "camera";
+  return null;
+}
 
 async function searchWorker(slug, q, page=1, limit=40){
   const url = new URL(`${WORKER_BASE}/search/${slug}`);
@@ -603,15 +592,27 @@ function resultCard(item){
     </div>`;
 }
 
-async function assistantFinalizeAndSearch(){
-  const cat = assistantState.category || "camera";
+function quickButtons(title, buttons){
+  const btns = buttons.map(b => `<button class="btn btn-mini btn-primary ps-quick" type="button" data-quick="${b.value}">${b.label}</button>`).join(' ');
+  return `<div class="bot-text"><b>${title}</b></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${btns}</div>`;
+}
+
+// Assistant state (uses currentCategory when available)
+const assistantState = {
+  stage: "idle",     // idle | need_budget
+  min: null,
+  max: null,
+  pendingQuery: ""
+};
+
+async function assistantFinalizeAndSearch(userQuery){
+  const cat = currentCategory || inferCategoryFromQuery(userQuery) || "camera";
   const prefix = categoryToQueryPrefix(cat);
 
-  // Build a safe query: category prefix + user query
-  const raw = `${prefix} ${assistantState.pendingQuery}`.trim();
+  const raw = `${prefix} ${userQuery}`.trim();
   const safeQ = normalizeHomeSecurityQuery(raw);
 
-  // Apply budget into page filters too (optional but nice)
+  // Apply budget to page filters too
   if (assistantState.min != null || assistantState.max != null) {
     minPriceVal = assistantState.min;
     maxPriceVal = assistantState.max;
@@ -620,9 +621,9 @@ async function assistantFinalizeAndSearch(){
     if (maxEl) maxEl.value = (maxPriceVal ?? "") === null ? "" : String(maxPriceVal ?? "");
   }
 
-  addChatMsg('bot', `<div class="bot-text">Searching for <b>${safeQ}</b>${assistantState.min||assistantState.max?` with your budget${assistantState.min?` ≥ ${fmt(assistantState.min)}`:''}${assistantState.max?` ≤ ${fmt(assistantState.max)}`:''}.`:'.'}</div>`);
+  addChatMsg('bot', `<div class="bot-text">Searching within <b>${cat}</b> for <b>${safeQ}</b>${assistantState.min||assistantState.max?` (budget${assistantState.min?` ≥ ${fmt(assistantState.min)}`:''}${assistantState.max?` ≤ ${fmt(assistantState.max)}`:''})`:''}.</div>`);
 
-  // 1) show top in chat
+  // Show top in chat
   const live = vendorDefs.filter(v=>v.live);
   const queries = live.map(v => searchWorker(v.slug, safeQ, 1, vendorLimits[v.name] || 40));
   const resultsByVendor = await Promise.all(queries);
@@ -642,18 +643,17 @@ async function assistantFinalizeAndSearch(){
   const top = pool.slice(0,3).map(resultCard).join('');
 
   if (!pool.length){
-    addChatMsg('bot', `<div class="bot-text">No great matches yet. Try adding a brand/model, or increase budget.</div>`);
+    addChatMsg('bot', `<div class="bot-text">No great matches yet. Try adding a brand/model or increase budget.</div>`);
   } else {
     addChatMsg('bot', `<div class="chat-cards">${top}</div>`);
   }
 
-  // 2) reflect to main page grid
+  // Reflect to main results grid
   const input=$('#search'); if (input){ input.value = safeQ; }
   await runSearch(safeQ);
 
-  // reset state
+  // Reset assistant stage but keep currentCategory (so user can keep refining inside it)
   assistantState.stage = "idle";
-  assistantState.category = null;
   assistantState.pendingQuery = "";
   assistantState.min = null;
   assistantState.max = null;
@@ -661,97 +661,55 @@ async function assistantFinalizeAndSearch(){
 
 async function assistantRespond(userText){
   const intent = parseIntent(userText);
-  const rawText = String(userText||"").trim();
+  const raw = String(userText||"").trim();
+  const isNoBudget = /^(no budget|any budget|no limit|anything)$/i.test(raw);
 
-  // quick command: "no budget"
-  const isNoBudget = /^(no budget|any budget|no limit|anything)$/i.test(rawText);
-
-  // Stage handling
-  if (assistantState.stage === "need_category") {
-    const cat = inferCategory(rawText);
-    if (!cat) {
-      addChatMsg('bot', quickButtons("Choose a category:", [
-        {label:"📷 Cameras", value:"camera"},
-        {label:"🚪 Doorbells", value:"doorbell"},
-        {label:"🔒 Smart Locks", value:"lock"},
-        {label:"🚨 Alarm & Sensors", value:"alarm"},
-        {label:"🧰 Accessories", value:"accessories"},
-        {label:"➕ Other", value:"other"},
-      ]));
-      return;
-    }
-    assistantState.category = cat;
-    assistantState.stage = "need_budget";
-    addChatMsg('bot', quickButtons("Any budget in mind? (optional)", [
-      {label:"No budget", value:"no budget"},
-      {label:"Under 100", value:"under 100"},
-      {label:"Under 200", value:"under 200"},
-      {label:"Under 300", value:"under 300"},
-      {label:"500+", value:"over 500"},
-    ]));
-    return;
-  }
-
+  // Step: if waiting for budget
   if (assistantState.stage === "need_budget") {
     if (isNoBudget) {
       assistantState.min = null;
       assistantState.max = null;
-      await assistantFinalizeAndSearch();
+      await assistantFinalizeAndSearch(assistantState.pendingQuery);
       return;
     }
-    // parse budget from the text itself using parseIntent
     if (intent.min != null || intent.max != null) {
       assistantState.min = intent.min;
       assistantState.max = intent.max;
-      await assistantFinalizeAndSearch();
+      await assistantFinalizeAndSearch(assistantState.pendingQuery);
       return;
     }
-    // if user answered with something else, allow "no budget" fallback
-    addChatMsg('bot', `<div class="bot-text">If you don’t have a budget, tap <b>No budget</b>. Or type like: <b>under 200</b> / <b>100-300</b>.</div>`);
+    addChatMsg('bot', `<div class="bot-text">Type a budget like <b>under 200</b> or <b>100-300</b>, or tap <b>No budget</b>.</div>`);
     return;
   }
 
-  // Stage idle: validate niche
+  // Validate niche
   if (!isHomeSecurityQuery(intent.query)) {
-    addChatMsg('bot', `<div class="bot-text">I can help with <b>home security devices</b> only (cameras, doorbells, smart locks, alarms, sensors, baby monitors, intercom, smoke/CO). Try: <b>“Reolink outdoor camera under 200”</b>.</div>`);
+    addChatMsg('bot', `<div class="bot-text">I can help with <b>home security devices</b> only. Please choose a category above, or describe a security item (camera, doorbell, lock, alarm, sensors, accessories).</div>`);
     return;
   }
 
-  // Determine category; if missing, ask
-  const cat = inferCategory(intent.query);
+  // Use category context if already selected; otherwise infer from query.
+  const cat = currentCategory || inferCategoryFromQuery(intent.query);
+
+  // If user already clicked a category, we refine inside it automatically.
+  // Ask budget once (optional) before searching.
   assistantState.pendingQuery = intent.query;
-  assistantState.min = intent.min;
-  assistantState.max = intent.max;
 
-  if (!cat) {
-    assistantState.stage = "need_category";
-    addChatMsg('bot', quickButtons("What are you looking for?", [
-      {label:"📷 Cameras", value:"camera"},
-      {label:"🚪 Doorbells", value:"doorbell"},
-      {label:"🔒 Smart Locks", value:"lock"},
-      {label:"🚨 Alarm & Sensors", value:"alarm"},
-      {label:"🧰 Accessories", value:"accessories"},
-      {label:"➕ Other", value:"other"},
-    ]));
+  if (intent.min != null || intent.max != null) {
+    assistantState.min = intent.min;
+    assistantState.max = intent.max;
+    await assistantFinalizeAndSearch(intent.query);
     return;
   }
 
-  assistantState.category = cat;
-
-  // If budget already provided, search now. Otherwise ask once.
-  if (assistantState.min != null || assistantState.max != null) {
-    await assistantFinalizeAndSearch();
-    return;
-  }
-
-  assistantState.stage = "need_budget";
-  addChatMsg('bot', quickButtons("Any budget in mind? (optional)", [
+  addChatMsg('bot', quickButtons(`Any budget for this ${cat || "category"}? (optional)`, [
     {label:"No budget", value:"no budget"},
     {label:"Under 100", value:"under 100"},
     {label:"Under 200", value:"under 200"},
     {label:"Under 300", value:"under 300"},
     {label:"500+", value:"over 500"},
   ]));
+  assistantState.stage = "need_budget";
 }
 
 /* =========================
@@ -870,7 +828,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     render();
   });
 
-  // Hidden search input still drives category dropdown -> search
+  // Hidden search input still drives category -> search
   $('#search')?.addEventListener('input',(e)=>{
     const raw = e.target.value || '';
     clearTimeout(debounce);
@@ -879,17 +837,40 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     },250);
   });
 
-  // Photo search: index.html handles chooser, but we also keep compatibility
+  // Category buttons: search immediately + set category context
+  document.querySelectorAll('.catBtn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const q = btn.getAttribute('data-q') || '';
+      const label = (btn.textContent || '').toLowerCase();
+
+      // set currentCategory based on label/query
+      const inferred = inferCategoryFromQuery(q) || inferCategoryFromQuery(label);
+      currentCategory = inferred || currentCategory;
+
+      const input = $('#search');
+      if (input) input.value = q;
+
+      await runSearch(q);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      // optional: hint in chat if open
+      if ($('#chatPanel')?.classList.contains('open') && currentCategory) {
+        addChatMsg('bot', `<div class="bot-text">You are browsing <b>${currentCategory}</b>. Tell me what you want to refine (brand/model/features/budget).</div>`);
+      }
+    });
+  });
+
+  // Photo search
   $('#photoBtn')?.addEventListener('click', ()=> $('#photoInput')?.click());
   $('#photoInput')?.addEventListener('change', ()=> { const f=$('#photoInput')?.files?.[0]; if (f) searchByPhoto(f); });
 
-  // Chat assistant open/close
-  $('#chatFab')?.addEventListener('click', ()=>{ openChat(); });
+  // Assistant open/close (single button in hero)
+  $('#assistantBtn')?.addEventListener('click', ()=> openChat());
   $('#chatClose')?.addEventListener('click', (e)=>{ e.preventDefault(); closeChat(); });
   $('#chatBg')?.addEventListener('click', ()=> closeChat());
   document.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ closeChat(); }});
 
-  // Quick buttons inside chat (event delegation)
+  // Quick buttons inside chat
   $('#chatMessages')?.addEventListener('click', async (e)=>{
     const btn = e.target.closest && e.target.closest('.ps-quick');
     if(!btn) return;
@@ -927,10 +908,9 @@ window.addEventListener('DOMContentLoaded', async ()=>{
 
   initCashbackLite();
   initSignupUI();
-
   await loadRates();
 
-  // Boot search: keep lightweight default, or leave blank if you prefer
+  // Boot: do not auto-open assistant; do a default browse category
   const startTerm = (new URLSearchParams(location.search).get('q'))
     || (localStorage.getItem('ps.lastQuery'))
     || 'outdoor security camera';
@@ -938,5 +918,6 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   const se=$('#search');
   if(se) se.value=startTerm;
 
+  currentCategory = inferCategoryFromQuery(startTerm) || "camera";
   await runSearch(startTerm);
 });
