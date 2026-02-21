@@ -213,49 +213,35 @@ function hasAny(text, list){
   return false;
 }
 
-/**
- * NEW: detect model/reference-like queries.
- * Examples: RLK8-800B4, C320WS, S330, DB2, G3, A100...
- * We require BOTH letters and numbers (to avoid allowing plain "12345"),
- * and a reasonable length.
- */
+// detect model/reference-like queries (letters+numbers)
 function looksLikeModelCode(txt){
   return /[a-z]/i.test(txt) && /\d/.test(txt) && txt.length >= 3 && txt.length <= 32;
 }
 
-// Allow brand-only searches, keyword searches, and model/reference searches.
-// Block if it matches HARD_BLOCK.
 function isHomeSecurityQuery(q){
   const txt = normalizeText(q);
   if (!txt) return false;
 
-  // hard block
   if (hasAny(txt, HARD_BLOCK)) return false;
 
-  // allow if contains brand or keyword
   if (hasAny(txt, HOME_SECURITY_BRANDS)) return true;
   if (hasAny(txt, HOME_SECURITY_KEYWORDS)) return true;
 
-  // allow “model-like” queries (letters+numbers, often with hyphens)
   if (looksLikeModelCode(txt)) return true;
 
-  // allow if includes any strong security marker
   if (/(camera|doorbell|lock|alarm|sensor|cctv|nvr|dvr|intercom|smoke|co|baby monitor)/i.test(txt)) return true;
 
   return false;
 }
 
-// Improve relevance: add “security” where helpful
 function normalizeHomeSecurityQuery(q){
   const txt = normalizeText(q);
   if (!txt) return txt;
 
-  // If user typed only a brand, add a category word to improve results
   if (hasAny(txt, HOME_SECURITY_BRANDS) && !/(camera|doorbell|lock|alarm|sensor|cctv|nvr|dvr|intercom|smoke|co|baby monitor)/i.test(txt)) {
     return `${txt} security camera`;
   }
 
-  // NEW: If user typed a model/reference only, add a hint so marketplaces return security items
   if (looksLikeModelCode(txt) && !/(camera|doorbell|lock|alarm|sensor|cctv|nvr|dvr|intercom|smoke|co|baby monitor)/i.test(txt) && !hasAny(txt, HOME_SECURITY_BRANDS)) {
     return `${txt} security camera`;
   }
@@ -271,29 +257,20 @@ function normalizeHomeSecurityQuery(q){
   return txt;
 }
 
-// Strict result filtering: keep ONLY home security items (plus allowed adjacent)
 function isHomeSecurityResult(item){
   const title = normalizeText(item?.title || "");
   if (!title) return false;
 
-  // remove anything obviously excluded
   if (hasAny(title, HARD_BLOCK)) return false;
-
-  // block dashcam variants
   if (title.includes("dashcam") || title.includes("dash cam")) return false;
 
-  // keep if contains home security keywords
   if (hasAny(title, HOME_SECURITY_KEYWORDS)) return true;
 
-  // keep if contains brand + something remotely security-ish or kit-ish
   if (hasAny(title, HOME_SECURITY_BRANDS)) {
     if (/(camera|kit|nvr|dvr|doorbell|lock|alarm|sensor|intercom|smoke|co|carbon monoxide|baby monitor)/i.test(title)) return true;
-    // Sometimes listings are short like “Reolink 4K”
-    // Keep brand-only results to avoid hiding relevant items
     return true;
   }
 
-  // keep if title has strong security markers
   if (/(cctv|nvr|dvr|poe|floodlight camera|security camera|video doorbell|smart lock|alarm system|motion sensor|door sensor|window sensor|intercom|smoke detector|co detector|baby monitor)/i.test(title)) {
     return true;
   }
@@ -305,7 +282,6 @@ function isHomeSecurityResult(item){
    DATA LOADERS
    ========================= */
 
-// ---- AliExpress enrichment (optional) ----
 const AE_DETAIL_ENRICH_COUNT = 0;
 async function enrichAliDetails(items){
   const tasks = items.slice(0, AE_DETAIL_ENRICH_COUNT).map(async (it) => {
@@ -329,7 +305,6 @@ async function enrichAliDetails(items){
   return items.map(o => map.get(String(o.id)) || o);
 }
 
-// loaders (paged)
 async function loadVendor(vendor, {append=false, page=1}={}){
   const def = vendorDefs.find(v => v.name === vendor); if (!def) return;
   const term=(query||"").trim();
@@ -359,7 +334,6 @@ async function loadVendor(vendor, {append=false, page=1}={}){
 
     if (vendor === "AliExpress" && arr.length) arr = await enrichAliDetails(arr);
 
-    // STRICT RESULT FILTERING (home security only)
     arr = arr.filter(isHomeSecurityResult);
 
     if (append) offersByVendor[vendor] = (offersByVendor[vendor]||[]).concat(arr);
@@ -381,7 +355,6 @@ function currentResults(){
     base = base.concat(offersByVendor[v]||[]);
   }
 
-  // budget filter
   if (minPriceVal != null || maxPriceVal != null) {
     base = base.filter(o=>{
       const p = priceInSelected(o);
@@ -397,7 +370,6 @@ function currentResults(){
   if (sortBy==='priceDesc') base.sort((a,b)=> priceInSelected(b) - priceInSelected(a));
   if (sortBy==='rating')    base.sort((a,b)=> (b.rating||4.2) - (a.rating||4.2));
 
-  // de-dup by title|vendor; keep better price
   const m=new Map();
   for(const o of base){
     const k=((o.title||'')+'|'+o.vendor).toLowerCase();
@@ -524,10 +496,13 @@ async function searchByPhoto(file){
     toast('Photo search failed. Try a clearer image.');
   }
 }
+// Expose for index.html photo chooser hook
+window.startPhotoSearch = searchByPhoto;
 
 // Chat assistant (open/close + reflect results to main grid)
 function openChat(){ const p=$('#chatPanel'); if(!p) return; p.classList.add('open'); $('#chatInput')?.focus(); }
 function closeChat(){ const p=$('#chatPanel'); if(!p) return; p.classList.remove('open'); }
+
 function addChatMsg(role, html){
   const box = $('#chatMessages');
   if (!box) return;
@@ -537,6 +512,7 @@ function addChatMsg(role, html){
   box.appendChild(wrap);
   box.scrollTop = box.scrollHeight;
 }
+
 function parseIntent(text){
   const msg = String(text||'').toLowerCase();
   let min=null, max=null;
@@ -551,6 +527,50 @@ function parseIntent(text){
 
   return { query: cleaned || msg, min, max };
 }
+
+function inferCategory(text){
+  const s = normalizeText(text);
+  if (!s) return null;
+
+  if (/(doorbell|ring doorbell|video doorbell)/i.test(s)) return "doorbell";
+  if (/(smart lock|deadbolt|keypad lock|fingerprint lock|door lock)/i.test(s)) return "lock";
+  if (/(alarm system|home alarm|siren|motion sensor|door sensor|window sensor|contact sensor|sensor)/i.test(s)) return "alarm";
+  if (/(mount|bracket|sd card|micro sd|adapter|power cable|solar panel|accessor)/i.test(s)) return "accessories";
+  if (/(intercom|smoke detector|carbon monoxide|co detector|baby monitor)/i.test(s)) return "other";
+  if (/(camera|cctv|nvr|dvr|poe|floodlight)/i.test(s)) return "camera";
+
+  // brand/model code: default to camera (most common)
+  if (hasAny(s, HOME_SECURITY_BRANDS) || looksLikeModelCode(s)) return "camera";
+
+  return null;
+}
+
+function categoryToQueryPrefix(cat){
+  switch(cat){
+    case "camera": return "security camera";
+    case "doorbell": return "video doorbell";
+    case "lock": return "smart lock";
+    case "alarm": return "home alarm system";
+    case "accessories": return "security camera accessories";
+    case "other": return "home security";
+    default: return "home security";
+  }
+}
+
+function quickButtons(title, buttons){
+  const btns = buttons.map(b => `<button class="btn btn-mini btn-primary ps-quick" type="button" data-quick="${b.value}">${b.label}</button>`).join(' ');
+  return `<div class="bot-text"><b>${title}</b></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${btns}</div>`;
+}
+
+// Assistant state machine
+const assistantState = {
+  stage: "idle",           // idle | need_category | need_budget
+  category: null,          // camera|doorbell|lock|alarm|accessories|other
+  pendingQuery: "",        // user query text
+  min: null,
+  max: null
+};
+
 async function searchWorker(slug, q, page=1, limit=40){
   const url = new URL(`${WORKER_BASE}/search/${slug}`);
   url.searchParams.set("q", q);
@@ -562,12 +582,14 @@ async function searchWorker(slug, q, page=1, limit=40){
   const d = await r.json().catch(()=>({results:[]}));
   return Array.isArray(d.results) ? d.results : [];
 }
+
 function withinRange(item, min, max){
   const p = priceInSelected(item);
   if (min!=null && p < min) return false;
   if (max!=null && p > max) return false;
   return true;
 }
+
 function resultCard(item){
   const p = fmt(priceInSelected(item));
   return `
@@ -580,21 +602,27 @@ function resultCard(item){
       </div>
     </div>`;
 }
-async function assistantRespond(userText){
-  const intent = parseIntent(userText);
 
-  if (!isHomeSecurityQuery(intent.query)) {
-    addChatMsg('bot', `<div class="bot-text">I can help with <b>home security devices</b> only (cameras, doorbells, smart locks, alarms, sensors, baby monitors, intercom, smoke/CO). Try: "Reolink outdoor camera under 200".</div>`);
-    return;
+async function assistantFinalizeAndSearch(){
+  const cat = assistantState.category || "camera";
+  const prefix = categoryToQueryPrefix(cat);
+
+  // Build a safe query: category prefix + user query
+  const raw = `${prefix} ${assistantState.pendingQuery}`.trim();
+  const safeQ = normalizeHomeSecurityQuery(raw);
+
+  // Apply budget into page filters too (optional but nice)
+  if (assistantState.min != null || assistantState.max != null) {
+    minPriceVal = assistantState.min;
+    maxPriceVal = assistantState.max;
+    const minEl = $('#minPrice'); const maxEl = $('#maxPrice');
+    if (minEl) minEl.value = (minPriceVal ?? "") === null ? "" : String(minPriceVal ?? "");
+    if (maxEl) maxEl.value = (maxPriceVal ?? "") === null ? "" : String(maxPriceVal ?? "");
   }
 
-  const safeQ = normalizeHomeSecurityQuery(intent.query);
+  addChatMsg('bot', `<div class="bot-text">Searching for <b>${safeQ}</b>${assistantState.min||assistantState.max?` with your budget${assistantState.min?` ≥ ${fmt(assistantState.min)}`:''}${assistantState.max?` ≤ ${fmt(assistantState.max)}`:''}.`:'.'}</div>`);
 
-  addChatMsg(
-    'bot',
-    `<div class="bot-text">Looking for <b>${safeQ}</b>${intent.min||intent.max?` in your price range${intent.min?` ≥ ${fmt(intent.min)}`:''}${intent.max?` ≤ ${fmt(intent.max)}`:''}.`:'.'}</div>`
-  );
-
+  // 1) show top in chat
   const live = vendorDefs.filter(v=>v.live);
   const queries = live.map(v => searchWorker(v.slug, safeQ, 1, vendorLimits[v.name] || 40));
   const resultsByVendor = await Promise.all(queries);
@@ -605,34 +633,137 @@ async function assistantRespond(userText){
     (arr||[]).forEach(o => pool.push({ ...o, vendor: vendorName }));
   });
 
-  // strict results filter
   pool = pool.filter(isHomeSecurityResult);
-
-  if (intent.min!=null || intent.max!=null){
-    pool = pool.filter(o => withinRange(o, intent.min, intent.max));
+  if (assistantState.min!=null || assistantState.max!=null){
+    pool = pool.filter(o => withinRange(o, assistantState.min, assistantState.max));
   }
 
   pool.sort((a,b) => priceInSelected(a) - priceInSelected(b) || (b.rating||0)-(a.rating||0));
+  const top = pool.slice(0,3).map(resultCard).join('');
+
   if (!pool.length){
-    addChatMsg('bot', `<div class="bot-text">No great matches yet. Try adding a model name or widening your price range.</div>`);
+    addChatMsg('bot', `<div class="bot-text">No great matches yet. Try adding a brand/model, or increase budget.</div>`);
+  } else {
+    addChatMsg('bot', `<div class="chat-cards">${top}</div>`);
+  }
+
+  // 2) reflect to main page grid
+  const input=$('#search'); if (input){ input.value = safeQ; }
+  await runSearch(safeQ);
+
+  // reset state
+  assistantState.stage = "idle";
+  assistantState.category = null;
+  assistantState.pendingQuery = "";
+  assistantState.min = null;
+  assistantState.max = null;
+}
+
+async function assistantRespond(userText){
+  const intent = parseIntent(userText);
+  const rawText = String(userText||"").trim();
+
+  // quick command: "no budget"
+  const isNoBudget = /^(no budget|any budget|no limit|anything)$/i.test(rawText);
+
+  // Stage handling
+  if (assistantState.stage === "need_category") {
+    const cat = inferCategory(rawText);
+    if (!cat) {
+      addChatMsg('bot', quickButtons("Choose a category:", [
+        {label:"📷 Cameras", value:"camera"},
+        {label:"🚪 Doorbells", value:"doorbell"},
+        {label:"🔒 Smart Locks", value:"lock"},
+        {label:"🚨 Alarm & Sensors", value:"alarm"},
+        {label:"🧰 Accessories", value:"accessories"},
+        {label:"➕ Other", value:"other"},
+      ]));
+      return;
+    }
+    assistantState.category = cat;
+    assistantState.stage = "need_budget";
+    addChatMsg('bot', quickButtons("Any budget in mind? (optional)", [
+      {label:"No budget", value:"no budget"},
+      {label:"Under 100", value:"under 100"},
+      {label:"Under 200", value:"under 200"},
+      {label:"Under 300", value:"under 300"},
+      {label:"500+", value:"over 500"},
+    ]));
     return;
   }
 
-  const top = pool.slice(0,3).map(resultCard).join('');
-  addChatMsg('bot', `<div class="chat-cards">${top}</div>`);
+  if (assistantState.stage === "need_budget") {
+    if (isNoBudget) {
+      assistantState.min = null;
+      assistantState.max = null;
+      await assistantFinalizeAndSearch();
+      return;
+    }
+    // parse budget from the text itself using parseIntent
+    if (intent.min != null || intent.max != null) {
+      assistantState.min = intent.min;
+      assistantState.max = intent.max;
+      await assistantFinalizeAndSearch();
+      return;
+    }
+    // if user answered with something else, allow "no budget" fallback
+    addChatMsg('bot', `<div class="bot-text">If you don’t have a budget, tap <b>No budget</b>. Or type like: <b>under 200</b> / <b>100-300</b>.</div>`);
+    return;
+  }
 
-  const input=$('#search'); if (input){ input.value = safeQ; }
-  await runSearch(safeQ);
+  // Stage idle: validate niche
+  if (!isHomeSecurityQuery(intent.query)) {
+    addChatMsg('bot', `<div class="bot-text">I can help with <b>home security devices</b> only (cameras, doorbells, smart locks, alarms, sensors, baby monitors, intercom, smoke/CO). Try: <b>“Reolink outdoor camera under 200”</b>.</div>`);
+    return;
+  }
+
+  // Determine category; if missing, ask
+  const cat = inferCategory(intent.query);
+  assistantState.pendingQuery = intent.query;
+  assistantState.min = intent.min;
+  assistantState.max = intent.max;
+
+  if (!cat) {
+    assistantState.stage = "need_category";
+    addChatMsg('bot', quickButtons("What are you looking for?", [
+      {label:"📷 Cameras", value:"camera"},
+      {label:"🚪 Doorbells", value:"doorbell"},
+      {label:"🔒 Smart Locks", value:"lock"},
+      {label:"🚨 Alarm & Sensors", value:"alarm"},
+      {label:"🧰 Accessories", value:"accessories"},
+      {label:"➕ Other", value:"other"},
+    ]));
+    return;
+  }
+
+  assistantState.category = cat;
+
+  // If budget already provided, search now. Otherwise ask once.
+  if (assistantState.min != null || assistantState.max != null) {
+    await assistantFinalizeAndSearch();
+    return;
+  }
+
+  assistantState.stage = "need_budget";
+  addChatMsg('bot', quickButtons("Any budget in mind? (optional)", [
+    {label:"No budget", value:"no budget"},
+    {label:"Under 100", value:"under 100"},
+    {label:"Under 200", value:"under 200"},
+    {label:"Under 300", value:"under 300"},
+    {label:"500+", value:"over 500"},
+  ]));
 }
 
-// Cashback (advert-only: toggle learn/close; no network; no local email storage)
+/* =========================
+   CASHBACK + SIGNUP
+   ========================= */
+
 function initCashbackLite(){
   const bar = $('#cashBar'); const info=$('#cashInfo');
   $('#cashLearn')?.addEventListener('click', ()=>{ info?.classList.toggle('open'); });
   $('#cashClose')?.addEventListener('click', ()=>{ if(bar) bar.style.display='none'; info?.classList.remove('open'); });
 }
 
-// Signup modal
 function initSignupUI(){
   const modal=$('#signupModal'), openBtn=$('#openSignup'), closeBtn=$('#suClose'),
         step1=$('#signupStep1'), step2=$('#signupStep2'), msg=$('#signupMsg'),
@@ -701,7 +832,7 @@ async function runSearch(rawQ){
   if (!inputQ) return;
 
   if (!isHomeSecurityQuery(inputQ)) {
-    toast('This site searches Home Security devices only (cameras, doorbells, smart locks, alarms, sensors, baby monitors, intercom, smoke/CO).');
+    toast('This site searches Home Security devices only.');
     return;
   }
 
@@ -720,10 +851,8 @@ async function runSearch(rawQ){
 // BOOT
 let debounce;
 window.addEventListener('DOMContentLoaded', async ()=>{
-  // Theme
   $('#themeToggle')?.addEventListener('click', ()=> applyTheme( (localStorage.getItem('ps.theme')==='dark') ? 'light' : 'dark' ));
 
-  // Language/Currency/Sort/Ship
   const selLang=$('#lang');
   if(selLang){
     selLang.value=lang;
@@ -733,7 +862,6 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   $('#sort')?.addEventListener('change',(e)=>{ sortBy=e.target.value; render(); });
   $('#shipMax')?.addEventListener('change',(e)=>{ maxShipDays=e.target.value; render(); });
 
-  // Budget filter
   $('#applyBudget')?.addEventListener('click', ()=>{
     const minV = $('#minPrice')?.value.trim() || '';
     const maxV = $('#maxPrice')?.value.trim() || '';
@@ -742,7 +870,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     render();
   });
 
-  // Search input (debounced)
+  // Hidden search input still drives category dropdown -> search
   $('#search')?.addEventListener('input',(e)=>{
     const raw = e.target.value || '';
     clearTimeout(debounce);
@@ -751,32 +879,25 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     },250);
   });
 
-  // Search button
-  $('#searchBtn')?.addEventListener('click', async ()=>{
-    const input = $('#search');
-    await runSearch(input ? input.value : '');
-  });
-
-  // Category buttons
-  document.querySelectorAll('.catBtn').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
-      const q = btn.getAttribute('data-q') || '';
-      const input = $('#search');
-      if (input) input.value = q;
-      await runSearch(q);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-  });
-
-  // Photo search
+  // Photo search: index.html handles chooser, but we also keep compatibility
   $('#photoBtn')?.addEventListener('click', ()=> $('#photoInput')?.click());
   $('#photoInput')?.addEventListener('change', ()=> { const f=$('#photoInput')?.files?.[0]; if (f) searchByPhoto(f); });
 
-  // Chat assistant open/close (X, bg, Esc)
+  // Chat assistant open/close
   $('#chatFab')?.addEventListener('click', ()=>{ openChat(); });
   $('#chatClose')?.addEventListener('click', (e)=>{ e.preventDefault(); closeChat(); });
   $('#chatBg')?.addEventListener('click', ()=> closeChat());
   document.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ closeChat(); }});
+
+  // Quick buttons inside chat (event delegation)
+  $('#chatMessages')?.addEventListener('click', async (e)=>{
+    const btn = e.target.closest && e.target.closest('.ps-quick');
+    if(!btn) return;
+    const val = btn.getAttribute('data-quick') || '';
+    addChatMsg('user', `<div class="me-text">${val}</div>`);
+    await assistantRespond(val);
+  });
+
   $('#chatForm')?.addEventListener('submit', async (e)=>{
     e.preventDefault();
     const txt = $('#chatInput')?.value.trim();
@@ -804,14 +925,12 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     }
   });
 
-  // Cashback (advert-only) + Signup modal
   initCashbackLite();
   initSignupUI();
 
-  // FX + boot search
   await loadRates();
 
-  // Start query
+  // Boot search: keep lightweight default, or leave blank if you prefer
   const startTerm = (new URLSearchParams(location.search).get('q'))
     || (localStorage.getItem('ps.lastQuery'))
     || 'outdoor security camera';
