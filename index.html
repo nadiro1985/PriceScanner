@@ -92,16 +92,6 @@
     .input.small{padding:.5rem .6rem;font-size:14px;width:110px}
     .row.center{display:flex;justify-content:center;margin-top:12px}
 
-    /* Stores panel (blue + red chips) */
-    .sourcesPanel{background:#146EB4;color:#fff;border-radius:12px;padding:10px;margin:10px 0 0 0}
-    .sourcesHeading{font-weight:800;margin-bottom:6px}
-    .src-list{display:flex;flex-wrap:wrap;gap:8px}
-    .src-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:10px;border:2px solid #E11900;background:#fff5f5;color:#E11900;font-weight:700;cursor:pointer;user-select:none}
-    .src-chip input{accent-color:#E11900}
-    .src-chip.on{background:#E11900;color:#fff;border-color:#E11900}
-    .src-chip.src-all{border-color:#0ea5e9;background:#e0f2fe;color:#075985}
-    .src-chip.src-all.on{background:#0ea5e9;color:#fff;border-color:#0ea5e9}
-
     /* Cashback (advert only) */
     .cashbackBar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:space-between;background:#0ea5e9;color:#fff;border-radius:12px;padding:10px;margin:10px 0}
     .cashLeft{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -228,17 +218,6 @@
             <option value="14">≤ 14</option>
             <option value="21">≤ 21</option>
           </select>
-        </div>
-
-        <!-- Stores selection (blue panel + red chips) -->
-        <div class="sourcesPanel" id="sourcesPanel" aria-label="Store filter">
-          <div class="sourcesHeading">Stores</div>
-          <div class="src-list">
-            <label class="src-chip src-all" title="Select / Deselect all">
-              <input type="checkbox" id="srcAll" checked> <span>Select all</span>
-            </label>
-            <div id="sourcesPanelList" class="src-list"></div>
-          </div>
         </div>
 
       </div>
