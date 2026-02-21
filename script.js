@@ -334,13 +334,17 @@ window.addEventListener('DOMContentLoaded', async ()=>{
 
   // category buttons (ONLY place that triggers store search)
   document.querySelectorAll('.catBtn').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
-      const q = btn.getAttribute('data-q') || '';
-      await runCategorySearch(q);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-  });
+  btn.addEventListener('click', async ()=>{
+    // remove highlight from all
+    document.querySelectorAll('.catBtn.active').forEach(b=> b.classList.remove('active'));
+    // highlight this one
+    btn.classList.add('active');
 
+    const q = btn.getAttribute('data-q') || '';
+    await runCategorySearch(q);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+});
   // More results (paged fetch for same category)
   $('#moreBtn')?.addEventListener('click', async ()=>{
     if (!query.trim()) { toast('Select a category first.'); return; }
@@ -371,3 +375,4 @@ await runCategorySearch(defaultCategory);
 // Highlight first category button
 const firstBtn = document.querySelector('.catBtn[data-q="outdoor security camera"]');
 if (firstBtn) firstBtn.classList.add('active');
+await runCategorySearch("outdoor security camera");
