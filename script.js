@@ -13,7 +13,7 @@ const PLACEHOLDER_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
 );
 
 // === VENDORS ===
-// We will NOT show a store list in UI, but we will still search live vendors.
+// We do NOT show store selection in UI, but we still search live vendors.
 const vendorDefs = [
   { name: "AliExpress", slug: "aliexpress", live: true,  color: "red"   },
   { name: "Amazon",     slug: "amazon",     live: true,  color: "blue"  },
@@ -30,7 +30,7 @@ const vendorDefs = [
   { name: "Walmart",    slug: "walmart",    live: false, color: "blue"  }
 ].sort((a,b)=>a.name.localeCompare(b.name));
 
-// Always use LIVE vendors only (since we are hiding vendor selection UI)
+// Always use LIVE vendors only
 const LIVE_VENDORS = vendorDefs.filter(v => v.live).map(v => v.name);
 let enabled = [...LIVE_VENDORS];
 
@@ -63,10 +63,10 @@ const trending = [
   "video doorbell",
   "smart lock",
   "home alarm system",
-  "wireless alarm system",
-  "security camera system kit",
-  "security camera without subscription",
-  "solar security camera"
+  "motion sensor",
+  "door sensor",
+  "intercom system",
+  "smoke detector smart"
 ];
 
 // helpers
@@ -155,72 +155,150 @@ function toast(m){
 }
 
 /* =========================
-   HOME SECURITY QUERY GUARD
+   HOME SECURITY QUERY + RESULT GUARDS
    ========================= */
 
-// Allowlist: home-security intent words + common brands.
-// If query doesn't include any of these, we block the search.
-const HOME_SECURITY_TERMS = [
-  // categories
-  "security", "home security", "smart home", "surveillance", "cctv",
-  "camera", "security camera", "outdoor camera", "indoor camera", "ptz",
-  "nvr", "dvr", "ip camera", "wifi camera", "wireless camera",
-  "doorbell", "video doorbell",
-  "lock", "smart lock", "deadbolt", "keypad lock", "fingerprint lock",
-  "alarm", "home alarm", "alarm system", "siren",
-  "motion sensor", "door sensor", "window sensor", "sensor", "contact sensor",
-  "floodlight camera", "solar camera", "night vision", "2k", "4k",
-  "no subscription", "local storage", "sd card", "base station",
-
-  // brands (add more anytime)
-  "ring", "arlo", "eufy", "reolink", "wyze", "blink", "nest", "google nest",
-  "ezviz", "imou", "hikvision", "dahua", "tp-link", "tapo", "aqara", "xiaomi",
-  "yale", "schlage", "august", "kwikset", "ultraloq"
+const HOME_SECURITY_BRANDS = [
+  "ring","arlo","eufy","reolink","wyze","blink","nest","google nest",
+  "ezviz","imou","hikvision","dahua","tp-link","tplink","tapo","aqara","xiaomi",
+  "yale","schlage","august","kwikset","ultraloq","tuya"
 ];
 
-const HOME_SECURITY_BLOCKLIST = [
-  // common unrelated consumer electronics
-  "iphone", "ipad", "samsung phone", "smartphone", "phone",
-  "laptop", "macbook", "gpu", "graphics card", "headphones", "earbuds",
-  "playstation", "ps5", "xbox", "nintendo", "tablet", "monitor",
-  "smartwatch"
+// allow keywords (search intent)
+const HOME_SECURITY_KEYWORDS = [
+  // security cameras & systems
+  "security","home security","surveillance","cctv","ip camera","wifi camera","wireless camera",
+  "security camera","outdoor camera","indoor camera","floodlight camera","ptz",
+  "nvr","dvr","camera system","nvr kit","dvr kit","poe","night vision","motion detection",
+  "2k","4k","local storage","sd card","base station","no subscription",
+
+  // doorbells
+  "doorbell","video doorbell",
+
+  // locks
+  "smart lock","lock","deadbolt","keypad lock","fingerprint lock",
+
+  // alarms + sensors
+  "alarm","home alarm","alarm system","siren",
+  "motion sensor","door sensor","window sensor","contact sensor","glass break",
+
+  // allowed “home security adjacent”
+  "baby monitor","intercom","intercom system",
+  "smoke detector","co detector","carbon monoxide","smoke alarm","co alarm"
+];
+
+// strong blocks
+const HARD_BLOCK = [
+  // consumer electronics & unrelated
+  "iphone","ipad","smartphone","phone","samsung","xiaomi phone",
+  "laptop","macbook","gpu","graphics card","headphones","earbuds",
+  "playstation","ps5","xbox","nintendo","tablet","smartwatch","camera lens","tripod",
+
+  // explicitly excluded category
+  "dash cam","dashcam"
 ];
 
 function normalizeText(s){
-  return String(s||'').toLowerCase().replace(/[^\w\s-]/g,' ').replace(/\s+/g,' ').trim();
+  return String(s||'')
+    .toLowerCase()
+    .replace(/[^\w\s-]/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
 }
 
+function hasAny(text, list){
+  for (const w of list){
+    if (text.includes(w)) return true;
+  }
+  return false;
+}
+
+/**
+ * NEW: detect model/reference-like queries.
+ * Examples: RLK8-800B4, C320WS, S330, DB2, G3, A100...
+ * We require BOTH letters and numbers (to avoid allowing plain "12345"),
+ * and a reasonable length.
+ */
+function looksLikeModelCode(txt){
+  return /[a-z]/i.test(txt) && /\d/.test(txt) && txt.length >= 3 && txt.length <= 32;
+}
+
+// Allow brand-only searches, keyword searches, and model/reference searches.
+// Block if it matches HARD_BLOCK.
 function isHomeSecurityQuery(q){
   const txt = normalizeText(q);
   if (!txt) return false;
 
-  // hard block if user is clearly searching a blocked category
-  for (const b of HOME_SECURITY_BLOCKLIST){
-    if (txt.includes(b)) return false;
-  }
+  // hard block
+  if (hasAny(txt, HARD_BLOCK)) return false;
 
-  // allow if contains any allow-term
-  for (const a of HOME_SECURITY_TERMS){
-    if (txt.includes(a)) return true;
-  }
+  // allow if contains brand or keyword
+  if (hasAny(txt, HOME_SECURITY_BRANDS)) return true;
+  if (hasAny(txt, HOME_SECURITY_KEYWORDS)) return true;
 
-  // Also allow if it contains "camera" + something related (some people type model numbers)
-  if (txt.includes("camera")) return true;
+  // allow “model-like” queries (letters+numbers, often with hyphens)
+  if (looksLikeModelCode(txt)) return true;
+
+  // allow if includes any strong security marker
+  if (/(camera|doorbell|lock|alarm|sensor|cctv|nvr|dvr|intercom|smoke|co|baby monitor)/i.test(txt)) return true;
 
   return false;
 }
 
-// Optional: make queries slightly more relevant.
-// If user types "doorbell" -> "video doorbell security" (helps results)
+// Improve relevance: add “security” where helpful
 function normalizeHomeSecurityQuery(q){
   const txt = normalizeText(q);
   if (!txt) return txt;
+
+  // If user typed only a brand, add a category word to improve results
+  if (hasAny(txt, HOME_SECURITY_BRANDS) && !/(camera|doorbell|lock|alarm|sensor|cctv|nvr|dvr|intercom|smoke|co|baby monitor)/i.test(txt)) {
+    return `${txt} security camera`;
+  }
+
+  // NEW: If user typed a model/reference only, add a hint so marketplaces return security items
+  if (looksLikeModelCode(txt) && !/(camera|doorbell|lock|alarm|sensor|cctv|nvr|dvr|intercom|smoke|co|baby monitor)/i.test(txt) && !hasAny(txt, HOME_SECURITY_BRANDS)) {
+    return `${txt} security camera`;
+  }
+
   if (txt.includes("video doorbell")) return txt;
   if (txt.includes("doorbell")) return `${txt} video doorbell security`;
+  if (txt.includes("smart lock")) return txt;
   if (txt.includes("lock")) return `${txt} smart lock`;
   if (txt.includes("alarm")) return `${txt} home alarm system`;
+  if (txt.includes("sensor")) return `${txt} security sensor`;
   if (txt.includes("camera") && !txt.includes("security")) return `${txt} security`;
+
   return txt;
+}
+
+// Strict result filtering: keep ONLY home security items (plus allowed adjacent)
+function isHomeSecurityResult(item){
+  const title = normalizeText(item?.title || "");
+  if (!title) return false;
+
+  // remove anything obviously excluded
+  if (hasAny(title, HARD_BLOCK)) return false;
+
+  // block dashcam variants
+  if (title.includes("dashcam") || title.includes("dash cam")) return false;
+
+  // keep if contains home security keywords
+  if (hasAny(title, HOME_SECURITY_KEYWORDS)) return true;
+
+  // keep if contains brand + something remotely security-ish or kit-ish
+  if (hasAny(title, HOME_SECURITY_BRANDS)) {
+    if (/(camera|kit|nvr|dvr|doorbell|lock|alarm|sensor|intercom|smoke|co|carbon monoxide|baby monitor)/i.test(title)) return true;
+    // Sometimes listings are short like “Reolink 4K”
+    // Keep brand-only results to avoid hiding relevant items
+    return true;
+  }
+
+  // keep if title has strong security markers
+  if (/(cctv|nvr|dvr|poe|floodlight camera|security camera|video doorbell|smart lock|alarm system|motion sensor|door sensor|window sensor|intercom|smoke detector|co detector|baby monitor)/i.test(title)) {
+    return true;
+  }
+
+  return false;
 }
 
 /* =========================
@@ -254,9 +332,9 @@ async function enrichAliDetails(items){
 // loaders (paged)
 async function loadVendor(vendor, {append=false, page=1}={}){
   const def = vendorDefs.find(v => v.name === vendor); if (!def) return;
-  const term=(query||"").trim(); if(!enabled.includes(vendor)||!WORKER_BASE||!term) return;
+  const term=(query||"").trim();
+  if(!enabled.includes(vendor)||!WORKER_BASE||!term) return;
 
-  // Only hit Worker for live vendors.
   if (!def.live) return;
 
   try{
@@ -280,6 +358,9 @@ async function loadVendor(vendor, {append=false, page=1}={}){
     }));
 
     if (vendor === "AliExpress" && arr.length) arr = await enrichAliDetails(arr);
+
+    // STRICT RESULT FILTERING (home security only)
+    arr = arr.filter(isHomeSecurityResult);
 
     if (append) offersByVendor[vendor] = (offersByVendor[vendor]||[]).concat(arr);
     else offersByVendor[vendor] = arr;
@@ -340,7 +421,6 @@ function renderLabels(){
 function render(){
   renderLabels();
 
-  // Results grid
   const data = currentResults();
   const grid = $('#grid');
   if (!grid) return;
@@ -380,7 +460,6 @@ function render(){
     grid.appendChild(card);
   });
 
-  // More results button
   const moreBtn = $('#moreBtn');
   if (moreBtn) {
     if (query.trim().length > 0) {
@@ -504,9 +583,8 @@ function resultCard(item){
 async function assistantRespond(userText){
   const intent = parseIntent(userText);
 
-  // enforce home-security in assistant too
   if (!isHomeSecurityQuery(intent.query)) {
-    addChatMsg('bot', `<div class="bot-text">I can help with <b>home security devices</b> only (cameras, doorbells, smart locks, alarms). Try: "outdoor security camera under 150".</div>`);
+    addChatMsg('bot', `<div class="bot-text">I can help with <b>home security devices</b> only (cameras, doorbells, smart locks, alarms, sensors, baby monitors, intercom, smoke/CO). Try: "Reolink outdoor camera under 200".</div>`);
     return;
   }
 
@@ -517,7 +595,6 @@ async function assistantRespond(userText){
     `<div class="bot-text">Looking for <b>${safeQ}</b>${intent.min||intent.max?` in your price range${intent.min?` ≥ ${fmt(intent.min)}`:''}${intent.max?` ≤ ${fmt(intent.max)}`:''}.`:'.'}</div>`
   );
 
-  // Search live vendors only
   const live = vendorDefs.filter(v=>v.live);
   const queries = live.map(v => searchWorker(v.slug, safeQ, 1, vendorLimits[v.name] || 40));
   const resultsByVendor = await Promise.all(queries);
@@ -528,21 +605,22 @@ async function assistantRespond(userText){
     (arr||[]).forEach(o => pool.push({ ...o, vendor: vendorName }));
   });
 
+  // strict results filter
+  pool = pool.filter(isHomeSecurityResult);
+
   if (intent.min!=null || intent.max!=null){
     pool = pool.filter(o => withinRange(o, intent.min, intent.max));
   }
 
   pool.sort((a,b) => priceInSelected(a) - priceInSelected(b) || (b.rating||0)-(a.rating||0));
   if (!pool.length){
-    addChatMsg('bot', `<div class="bot-text">No great matches yet. Try adding a brand/model or widening your price range.</div>`);
+    addChatMsg('bot', `<div class="bot-text">No great matches yet. Try adding a model name or widening your price range.</div>`);
     return;
   }
 
-  // show top in chat
   const top = pool.slice(0,3).map(resultCard).join('');
   addChatMsg('bot', `<div class="chat-cards">${top}</div>`);
 
-  // reflect to main page
   const input=$('#search'); if (input){ input.value = safeQ; }
   await runSearch(safeQ);
 }
@@ -622,22 +700,16 @@ async function runSearch(rawQ){
   const inputQ = String(rawQ||"").trim();
   if (!inputQ) return;
 
-  // Guard: home-security only
   if (!isHomeSecurityQuery(inputQ)) {
-    toast('This site searches Home Security devices only (cameras, doorbells, smart locks, alarms).');
-    // Optional: clear results if you want
-    // for (const v of LIVE_VENDORS) offersByVendor[v] = [];
-    // render();
+    toast('This site searches Home Security devices only (cameras, doorbells, smart locks, alarms, sensors, baby monitors, intercom, smoke/CO).');
     return;
   }
 
   const safeQ = normalizeHomeSecurityQuery(inputQ);
 
-  // persist and search
   query = safeQ;
   localStorage.setItem('ps.lastQuery', query);
 
-  // Always use live vendors only
   enabled = [...LIVE_VENDORS];
 
   Object.keys(vendorPages).forEach(k=> vendorPages[k]=1);
@@ -648,10 +720,6 @@ async function runSearch(rawQ){
 // BOOT
 let debounce;
 window.addEventListener('DOMContentLoaded', async ()=>{
-  // Hide store panel UI completely
-  const sp = $('#sourcesPanel');
-  if (sp) sp.style.display = 'none';
-
   // Theme
   $('#themeToggle')?.addEventListener('click', ()=> applyTheme( (localStorage.getItem('ps.theme')==='dark') ? 'light' : 'dark' ));
 
@@ -674,7 +742,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     render();
   });
 
-  // Search input (debounced) — still allowed, but guarded to home security only
+  // Search input (debounced)
   $('#search')?.addEventListener('input',(e)=>{
     const raw = e.target.value || '';
     clearTimeout(debounce);
@@ -689,7 +757,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     await runSearch(input ? input.value : '');
   });
 
-  // Category quick buttons (from index.html)
+  // Category buttons
   document.querySelectorAll('.catBtn').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const q = btn.getAttribute('data-q') || '';
@@ -718,7 +786,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     await assistantRespond(txt);
   });
 
-  // More results (paged fetch for each live vendor)
+  // More results
   $('#moreBtn')?.addEventListener('click', async ()=>{
     vendorDefs.filter(v=>v.live && enabled.includes(v.name)).forEach(v => vendorPages[v.name] = (vendorPages[v.name]||1) + 1);
 
@@ -743,7 +811,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   // FX + boot search
   await loadRates();
 
-  // Start query (home security default)
+  // Start query
   const startTerm = (new URLSearchParams(location.search).get('q'))
     || (localStorage.getItem('ps.lastQuery'))
     || 'outdoor security camera';
