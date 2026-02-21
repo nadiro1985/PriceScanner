@@ -190,3 +190,5 @@ body{
   .searchBar{flex-wrap:wrap}
   .chat-panel{right:10px;left:10px;width:auto}
 }
+/* Force-hide any old floating assistant button */
+.chat-fab{display:none !important;}
