@@ -624,14 +624,6 @@ function render(){
     moreBtn.style.opacity = moreBtn.disabled ? '.6' : '1';
     moreBtn.style.pointerEvents = moreBtn.disabled ? 'none' : 'auto';
   }
-
-  // hint
-  const hint = $('#localFilterHint');
-  if (hint) {
-    hint.textContent = query.trim()
-      ? t('hint.filteringInside', { q: query })
-      : t('hint.selectCategory');
-  }
 }
 
 // set active category UI
@@ -680,7 +672,6 @@ window.addEventListener('DOMContentLoaded', async ()=>{
       render();
     };
   }
-
   $('#currency')?.addEventListener('change',(e)=>{ currency=e.target.value; render(); });
   $('#sort')?.addEventListener('change',(e)=>{ sortBy=e.target.value; render(); });
   $('#shipMax')?.addEventListener('change',(e)=>{ maxShipDays=e.target.value; render(); });
