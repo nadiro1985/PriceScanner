@@ -95,9 +95,9 @@
     <!-- Cashback banner -->
     <section class="cashbackBar" id="cashBar" aria-label="Cashback announcement">
       <div class="cashLeft">
-        <strong class="cashTitle">Earn 2–10% cashback</strong>
-        <span>on eligible purchases via PriceScanner.</span>
-        <button id="cashLearn" class="cashBtn" type="button">Learn more</button>
+        <strong class="cashTitle" data-i18n="cash.title">Earn 2–10% cashback</strong>
+        <span data-i18n="cash.subtitle">on eligible purchases via PriceScanner.</span>
+        <button id="cashLearn" class="cashBtn" type="button" data-i18n="cash.learn">Learn more</button>
       </div>
       <div class="cashRight">
         <button id="cashClose" class="cashClose" type="button" aria-label="Hide cashback">✕</button>
@@ -105,14 +105,14 @@
     </section>
 
     <section id="cashInfo" class="cashInfo" aria-live="polite">
-      <h3 style="margin:0 0 6px 0;color:#146EB4;font-weight:900">How cashback will work</h3>
+      <h3 style="margin:0 0 6px 0;color:#146EB4;font-weight:900" data-i18n="cash.howTitle">How cashback will work</h3>
       <ul class="cashBullets">
-        <li>Register for a free account and get your profile.</li>
-        <li>Shop through PriceScanner links. Cashback typically ranges between <b>2–10%</b>.</li>
-        <li>Cashback is awarded after delivery is confirmed and no return is made.</li>
-        <li>Redeem as cash or apply it to your next payment.</li>
+        <li data-i18n="cash.li1">Register for a free account and get your profile.</li>
+        <li data-i18n="cash.li2">Shop through PriceScanner links. Cashback typically ranges between <b>2–10%</b>.</li>
+        <li data-i18n="cash.li3">Cashback is awarded after delivery is confirmed and no return is made.</li>
+        <li data-i18n="cash.li4">Redeem as cash or apply it to your next payment.</li>
       </ul>
-      <p style="margin:0;color:#334155;font-size:14px">Sign up and payout options will be added here later.</p>
+      <p style="margin:0;color:#334155;font-size:14px" data-i18n="cash.note">Sign up and payout options will be added here later.</p>
     </section>
 
     <!-- Hero -->
@@ -128,64 +128,67 @@
 
           <div class="topControls">
             <button id="themeToggle" class="btn-icon" type="button" title="Toggle dark mode" aria-label="Toggle dark mode">🌙</button>
-            <button id="openSignup" class="btn-sm" type="button" title="Sign in / Sign up for alerts">Sign in</button>
+            <button id="openSignup" class="btn-sm" type="button" title="Sign in / Sign up for alerts" data-i18n="auth.signin">Sign in</button>
 
-            <label id="lblLang" class="sr-only" for="lang">Language</label>
+            <label id="lblLang" class="sr-only" for="lang" data-i18n="lbl.lang">Language</label>
             <select id="lang" class="select small" aria-labelledby="lblLang">
-              <option value="en">English</option><option value="ar">العربية</option>
-              <option value="fr">Français</option><option value="es">Español</option><option value="zh">中文</option>
+              <option value="en">English</option>
+              <option value="ar">العربية</option>
+              <option value="fr">Français</option>
+              <option value="es">Español</option>
+              <option value="zh">中文</option>
             </select>
 
-            <label id="lblCurrency" class="sr-only" for="currency">Currency</label>
+            <label id="lblCurrency" class="sr-only" for="currency" data-i18n="lbl.currency">Currency</label>
             <select id="currency" class="select small" aria-labelledby="lblCurrency">
               <option>SGD</option><option>USD</option><option>EUR</option>
             </select>
           </div>
         </div>
 
-        <h1 id="tagline" class="heroTitle">Deal Fast. Best Price.</h1>
-        <p class="heroSub">Home security devices.</p>
+        <h1 id="tagline" class="heroTitle" data-i18n="hero.tagline">Deal Fast. Best Price.</h1>
+        <p class="heroSub" data-i18n="hero.sub">Home security devices.</p>
 
         <!-- Categories -->
         <div class="catBar" role="navigation" aria-label="Home security categories">
-          <button class="catBtn" type="button" data-q="outdoor security camera">Outdoor Cameras</button>
-          <button class="catBtn" type="button" data-q="indoor security camera">Indoor Cameras</button>
-          <button class="catBtn" type="button" data-q="video doorbell">Video Doorbells</button>
-          <button class="catBtn" type="button" data-q="smart lock">Smart Locks</button>
-          <button class="catBtn" type="button" data-q="home alarm system">Alarm & Sensors</button>
-          <button class="catBtn" type="button" data-q="security camera accessories">Accessories</button>
+          <button class="catBtn" type="button" data-q="outdoor security camera" data-i18n="cat.outdoor">Outdoor Cameras</button>
+          <button class="catBtn" type="button" data-q="indoor security camera" data-i18n="cat.indoor">Indoor Cameras</button>
+          <button class="catBtn" type="button" data-q="video doorbell" data-i18n="cat.doorbell">Video Doorbells</button>
+          <button class="catBtn" type="button" data-q="smart lock" data-i18n="cat.lock">Smart Locks</button>
+          <button class="catBtn" type="button" data-q="home alarm system" data-i18n="cat.alarm">Alarm & Sensors</button>
+          <button class="catBtn" type="button" data-q="security camera accessories" data-i18n="cat.accessories">Accessories</button>
         </div>
 
         <!-- Local keyword filter (filters current category results only) -->
         <div class="localFilterRow" role="search" aria-label="Filter results">
-          <input id="localFilter" class="input localFilterInput" placeholder="search with keywords" aria-label="Filter results">
-          <span class="localFilterHint" id="localFilterHint">Select a category first.</span>
+          <input id="localFilter" class="input localFilterInput" placeholder="search with keywords" data-i18n-placeholder="search.placeholder" aria-label="Filter results">
+          <span class="localFilterHint" id="localFilterHint" data-i18n="hint.selectCategory">Select a category first.</span>
         </div>
 
         <!-- Filters (still apply to displayed results) -->
         <div class="filtersBar" role="group" aria-label="Filters">
           <div class="budgetWrap" aria-label="Budget filter">
-            <input id="minPrice" class="input small" type="number" min="0" step="1" placeholder="Min">
-            <input id="maxPrice" class="input small" type="number" min="0" step="1" placeholder="Max">
-            <button id="applyBudget" class="btn" type="button">Apply</button>
+            <input id="minPrice" class="input small" type="number" min="0" step="1" placeholder="Min" data-i18n-placeholder="budget.min">
+            <input id="maxPrice" class="input small" type="number" min="0" step="1" placeholder="Max" data-i18n-placeholder="budget.max">
+            <button id="applyBudget" class="btn" type="button" data-i18n="budget.apply">Apply</button>
           </div>
 
           <div style="flex:1"></div>
 
-          <label for="sort" class="controlLabel" id="lblSort">Sort by</label>
+          <label for="sort" class="controlLabel" id="lblSort" data-i18n="sort.label">Sort by</label>
           <select id="sort" class="select" aria-labelledby="lblSort">
-            <option value="priceAsc">Price: Low to High</option>
-            <option value="priceDesc">Price: High to Low</option>
-            <option value="rating">Rating</option>
+            <option value="priceAsc" data-i18n="sort.priceAsc">Price: Low to High</option>
+            <option value="priceDesc" data-i18n="sort.priceDesc">Price: High to Low</option>
+            <option value="rating" data-i18n="sort.rating">Rating</option>
           </select>
 
-          <label for="shipMax" class="controlLabel" id="lblShip">Max ship days</label>
+          <label for="shipMax" class="controlLabel" id="lblShip" data-i18n="ship.label">Max ship days</label>
           <select id="shipMax" class="select" aria-labelledby="lblShip">
-            <option value="">Any</option>
-            <option value="3">≤ 3</option>
-            <option value="7">≤ 7</option>
-            <option value="14">≤ 14</option>
-            <option value="21">≤ 21</option>
+            <option value="" data-i18n="ship.any">Any</option>
+            <option value="3" data-i18n="ship.3">≤ 3</option>
+            <option value="7" data-i18n="ship.7">≤ 7</option>
+            <option value="14" data-i18n="ship.14">≤ 14</option>
+            <option value="21" data-i18n="ship.21">≤ 21</option>
           </select>
         </div>
 
@@ -195,7 +198,9 @@
 
   <section class="container pad-b">
     <div id="grid" class="grid"></div>
-    <div class="row center"><button id="moreBtn" class="btn" type="button" style="display:none">More results</button></div>
+    <div class="row center">
+      <button id="moreBtn" class="btn" type="button" style="display:none" data-i18n="more">More results</button>
+    </div>
   </section>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -204,11 +209,11 @@
     <div class="container footerInner" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
       <div>© <span id="year"></span> <span id="brandFooter">PriceScanner</span></div>
       <div class="footerRight">
-        <a href="admin.html">Admin</a>
-        <a href="privacy.html" rel="nofollow">Privacy</a>
-        <a href="terms.html" rel="nofollow">Terms</a>
-        <a href="affiliates.html" rel="nofollow">Affiliate Disclosure</a>
-        <button id="forceUpdate" class="btn" type="button" title="Clear cache and reload new files">Force update</button>
+        <a href="admin.html" data-i18n="footer.admin">Admin</a>
+        <a href="privacy.html" rel="nofollow" data-i18n="footer.privacy">Privacy</a>
+        <a href="terms.html" rel="nofollow" data-i18n="footer.terms">Terms</a>
+        <a href="affiliates.html" rel="nofollow" data-i18n="footer.aff">Affiliate Disclosure</a>
+        <button id="forceUpdate" class="btn" type="button" title="Clear cache and reload new files" data-i18n="footer.force">Force update</button>
       </div>
     </div>
   </footer>
