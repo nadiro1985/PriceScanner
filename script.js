@@ -11,6 +11,7 @@ const PLACEHOLDER_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
            fill="#94a3b8" font-family="Arial" font-size="20">No image</text>
    </svg>`
 );
+
 const vendorDefs = [
   { name: "AliExpress", slug: "aliexpress", live: true },
   { name: "Amazon", slug: "amazon", live: true },
@@ -721,9 +722,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   });
 
   // FX
-  await loadRates();
-
-  // ✅ Landing page override (SEO pages set window.PS_LANDING_QUERY)
+  await loadRates();  // ✅ Landing page override (SEO pages set window.PS_LANDING_QUERY)
   const landingQ = (window.PS_LANDING_QUERY || "").trim();
 
   if (landingQ) {
