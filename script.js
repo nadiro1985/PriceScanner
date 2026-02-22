@@ -11,7 +11,6 @@ const PLACEHOLDER_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
            fill="#94a3b8" font-family="Arial" font-size="20">No image</text>
    </svg>`
 );
-
 const vendorDefs = [
   { name: "AliExpress", slug: "aliexpress", live: true },
   { name: "Amazon", slug: "amazon", live: true },
