@@ -46,20 +46,365 @@ const offersByVendor = Object.fromEntries(vendorDefs.map(v => [v.name, []]));
 // helpers
 const $ = sel => document.querySelector(sel);
 
+// === i18n (Translations) ===
+const I18N = {
+  en: {
+    "cash.title": "Earn 2–10% cashback",
+    "cash.subtitle": "on eligible purchases via PriceScanner.",
+    "cash.learn": "Learn more",
+    "cash.howTitle": "How cashback will work",
+    "cash.li1": "Register for a free account and get your profile.",
+    "cash.li2": "Shop through PriceScanner links. Cashback typically ranges between <b>2–10%</b>.",
+    "cash.li3": "Cashback is awarded after delivery is confirmed and no return is made.",
+    "cash.li4": "Redeem as cash or apply it to your next payment.",
+    "cash.note": "Sign up and payout options will be added here later.",
+
+    "auth.signin": "Sign in",
+    "lbl.lang": "Language",
+    "lbl.currency": "Currency",
+
+    "hero.tagline": "Deal Fast. Best Price.",
+    "hero.sub": "Home security devices.",
+
+    "cat.outdoor": "Outdoor Cameras",
+    "cat.indoor": "Indoor Cameras",
+    "cat.doorbell": "Video Doorbells",
+    "cat.lock": "Smart Locks",
+    "cat.alarm": "Alarm & Sensors",
+    "cat.accessories": "Accessories",
+
+    "search.placeholder": "search with keywords",
+    "hint.selectCategory": "Select a category first.",
+    "hint.filteringInside": "Filtering inside: {q}",
+
+    "budget.min": "Min",
+    "budget.max": "Max",
+    "budget.apply": "Apply",
+
+    "sort.label": "Sort by",
+    "sort.priceAsc": "Price: Low to High",
+    "sort.priceDesc": "Price: High to Low",
+    "sort.rating": "Rating",
+
+    "ship.label": "Max ship days",
+    "ship.any": "Any",
+    "ship.3": "≤ 3",
+    "ship.7": "≤ 7",
+    "ship.14": "≤ 14",
+    "ship.21": "≤ 21",
+
+    "more": "More results",
+
+    "footer.admin": "Admin",
+    "footer.privacy": "Privacy",
+    "footer.terms": "Terms",
+    "footer.aff": "Affiliate Disclosure",
+    "footer.force": "Force update",
+
+    "card.shippingFallback": "Shipping calculated at checkout",
+    "card.viewDeal": "View Deal",
+    "card.watch": "Watch",
+
+    "toast.selectCategory": "Select a category first.",
+    "toast.noMore": "No more results."
+  },
+
+  ar: {
+    "cash.title": "اكسب كاش باك ٢–١٠٪",
+    "cash.subtitle": "على المشتريات المؤهلة عبر PriceScanner.",
+    "cash.learn": "اعرف المزيد",
+    "cash.howTitle": "كيف سيعمل الكاش باك",
+    "cash.li1": "سجّل حسابًا مجانيًا واحصل على ملفك الشخصي.",
+    "cash.li2": "تسوّق عبر روابط PriceScanner. عادةً يتراوح الكاش باك بين <b>٢–١٠٪</b>.",
+    "cash.li3": "يُمنح الكاش باك بعد تأكيد الاستلام وعدم وجود إرجاع.",
+    "cash.li4": "اسحب المبلغ نقدًا أو استخدمه في دفعتك القادمة.",
+    "cash.note": "سيتم إضافة خيارات التسجيل والسحب لاحقًا.",
+
+    "auth.signin": "تسجيل الدخول",
+    "lbl.lang": "اللغة",
+    "lbl.currency": "العملة",
+
+    "hero.tagline": "أسرع صفقة. أفضل سعر.",
+    "hero.sub": "أجهزة أمن المنزل.",
+
+    "cat.outdoor": "كاميرات خارجية",
+    "cat.indoor": "كاميرات داخلية",
+    "cat.doorbell": "جرس باب بالفيديو",
+    "cat.lock": "أقفال ذكية",
+    "cat.alarm": "إنذار وحساسات",
+    "cat.accessories": "ملحقات",
+
+    "search.placeholder": "ابحث بالكلمات",
+    "hint.selectCategory": "اختر فئة أولاً.",
+    "hint.filteringInside": "تصفية داخل: {q}",
+
+    "budget.min": "الحد الأدنى",
+    "budget.max": "الحد الأعلى",
+    "budget.apply": "تطبيق",
+
+    "sort.label": "الترتيب حسب",
+    "sort.priceAsc": "السعر: من الأقل للأعلى",
+    "sort.priceDesc": "السعر: من الأعلى للأقل",
+    "sort.rating": "التقييم",
+
+    "ship.label": "أقصى مدة شحن",
+    "ship.any": "أي",
+    "ship.3": "≤ ٣",
+    "ship.7": "≤ ٧",
+    "ship.14": "≤ ١٤",
+    "ship.21": "≤ ٢١",
+
+    "more": "المزيد من النتائج",
+
+    "footer.admin": "لوحة الإدارة",
+    "footer.privacy": "الخصوصية",
+    "footer.terms": "الشروط",
+    "footer.aff": "إفصاح الأفلييت",
+    "footer.force": "تحديث إجباري",
+
+    "card.shippingFallback": "يتم احتساب الشحن عند الدفع",
+    "card.viewDeal": "عرض الصفقة",
+    "card.watch": "متابعة",
+
+    "toast.selectCategory": "اختر فئة أولاً.",
+    "toast.noMore": "لا توجد نتائج إضافية."
+  },
+
+  fr: {
+    "cash.title": "Gagnez 2–10 % de cashback",
+    "cash.subtitle": "sur les achats éligibles via PriceScanner.",
+    "cash.learn": "En savoir plus",
+    "cash.howTitle": "Comment le cashback fonctionnera",
+    "cash.li1": "Créez un compte gratuit et obtenez votre profil.",
+    "cash.li2": "Achetez via les liens PriceScanner. Le cashback varie généralement entre <b>2–10 %</b>.",
+    "cash.li3": "Le cashback est accordé après confirmation de la livraison et sans retour.",
+    "cash.li4": "Retirez en espèces ou appliquez au prochain paiement.",
+    "cash.note": "L’inscription et les options de paiement seront ajoutées plus tard.",
+
+    "auth.signin": "Se connecter",
+    "lbl.lang": "Langue",
+    "lbl.currency": "Devise",
+
+    "hero.tagline": "Offres rapides. Meilleur prix.",
+    "hero.sub": "Appareils de sécurité domestique.",
+
+    "cat.outdoor": "Caméras extérieures",
+    "cat.indoor": "Caméras intérieures",
+    "cat.doorbell": "Sonnettes vidéo",
+    "cat.lock": "Serrures intelligentes",
+    "cat.alarm": "Alarme & capteurs",
+    "cat.accessories": "Accessoires",
+
+    "search.placeholder": "rechercher par mots-clés",
+    "hint.selectCategory": "Sélectionnez une catégorie d’abord.",
+    "hint.filteringInside": "Filtrage dans : {q}",
+
+    "budget.min": "Min",
+    "budget.max": "Max",
+    "budget.apply": "Appliquer",
+
+    "sort.label": "Trier par",
+    "sort.priceAsc": "Prix : du moins cher au plus cher",
+    "sort.priceDesc": "Prix : du plus cher au moins cher",
+    "sort.rating": "Note",
+
+    "ship.label": "Jours de livraison max",
+    "ship.any": "Tous",
+    "ship.3": "≤ 3",
+    "ship.7": "≤ 7",
+    "ship.14": "≤ 14",
+    "ship.21": "≤ 21",
+
+    "more": "Plus de résultats",
+
+    "footer.admin": "Admin",
+    "footer.privacy": "Confidentialité",
+    "footer.terms": "Conditions",
+    "footer.aff": "Divulgation d’affiliation",
+    "footer.force": "Forcer la mise à jour",
+
+    "card.shippingFallback": "Frais de livraison calculés à la caisse",
+    "card.viewDeal": "Voir l’offre",
+    "card.watch": "Suivre",
+
+    "toast.selectCategory": "Sélectionnez une catégorie d’abord.",
+    "toast.noMore": "Plus de résultats."
+  },
+
+  es: {
+    "cash.title": "Gana 2–10% de cashback",
+    "cash.subtitle": "en compras elegibles vía PriceScanner.",
+    "cash.learn": "Más información",
+    "cash.howTitle": "Cómo funcionará el cashback",
+    "cash.li1": "Regístrate gratis y obtén tu perfil.",
+    "cash.li2": "Compra a través de enlaces de PriceScanner. El cashback suele ser entre <b>2–10%</b>.",
+    "cash.li3": "El cashback se otorga tras confirmar la entrega y sin devoluciones.",
+    "cash.li4": "Retira en efectivo o aplícalo a tu próximo pago.",
+    "cash.note": "El registro y las opciones de cobro se agregarán más adelante.",
+
+    "auth.signin": "Iniciar sesión",
+    "lbl.lang": "Idioma",
+    "lbl.currency": "Moneda",
+
+    "hero.tagline": "Ofertas rápidas. Mejor precio.",
+    "hero.sub": "Dispositivos de seguridad para el hogar.",
+
+    "cat.outdoor": "Cámaras exteriores",
+    "cat.indoor": "Cámaras interiores",
+    "cat.doorbell": "Timbres con vídeo",
+    "cat.lock": "Cerraduras inteligentes",
+    "cat.alarm": "Alarma y sensores",
+    "cat.accessories": "Accesorios",
+
+    "search.placeholder": "buscar con palabras clave",
+    "hint.selectCategory": "Selecciona una categoría primero.",
+    "hint.filteringInside": "Filtrando en: {q}",
+
+    "budget.min": "Mín",
+    "budget.max": "Máx",
+    "budget.apply": "Aplicar",
+
+    "sort.label": "Ordenar por",
+    "sort.priceAsc": "Precio: de menor a mayor",
+    "sort.priceDesc": "Precio: de mayor a menor",
+    "sort.rating": "Valoración",
+
+    "ship.label": "Máx. días de envío",
+    "ship.any": "Cualquiera",
+    "ship.3": "≤ 3",
+    "ship.7": "≤ 7",
+    "ship.14": "≤ 14",
+    "ship.21": "≤ 21",
+
+    "more": "Más resultados",
+
+    "footer.admin": "Admin",
+    "footer.privacy": "Privacidad",
+    "footer.terms": "Términos",
+    "footer.aff": "Divulgación de afiliados",
+    "footer.force": "Forzar actualización",
+
+    "card.shippingFallback": "El envío se calcula al pagar",
+    "card.viewDeal": "Ver oferta",
+    "card.watch": "Seguir",
+
+    "toast.selectCategory": "Selecciona una categoría primero.",
+    "toast.noMore": "No hay más resultados."
+  },
+
+  zh: {
+    "cash.title": "返现 2–10%",
+    "cash.subtitle": "通过 PriceScanner 购买符合条件的商品可返现。",
+    "cash.learn": "了解更多",
+    "cash.howTitle": "返现如何运作",
+    "cash.li1": "注册免费账号并创建个人资料。",
+    "cash.li2": "通过 PriceScanner 链接购物。返现通常在 <b>2–10%</b> 之间。",
+    "cash.li3": "确认收货且无退货后发放返现。",
+    "cash.li4": "可提现吗或用于下次付款。",
+    "cash.note": "注册与提现方式会在后续加入。",
+
+    "auth.signin": "登录",
+    "lbl.lang": "语言",
+    "lbl.currency": "货币",
+
+    "hero.tagline": "快速捡漏。最佳价格。",
+    "hero.sub": "家庭安防设备。",
+
+    "cat.outdoor": "室外摄像头",
+    "cat.indoor": "室内摄像头",
+    "cat.doorbell": "可视门铃",
+    "cat.lock": "智能门锁",
+    "cat.alarm": "报警与传感器",
+    "cat.accessories": "配件",
+
+    "search.placeholder": "输入关键词搜索",
+    "hint.selectCategory": "请先选择分类。",
+    "hint.filteringInside": "在以下分类内筛选：{q}",
+
+    "budget.min": "最低",
+    "budget.max": "最高",
+    "budget.apply": "应用",
+
+    "sort.label": "排序",
+    "sort.priceAsc": "价格：从低到高",
+    "sort.priceDesc": "价格：从高到低",
+    "sort.rating": "评分",
+
+    "ship.label": "最长配送天数",
+    "ship.any": "不限",
+    "ship.3": "≤ 3",
+    "ship.7": "≤ 7",
+    "ship.14": "≤ 14",
+    "ship.21": "≤ 21",
+
+    "more": "更多结果",
+
+    "footer.admin": "管理",
+    "footer.privacy": "隐私",
+    "footer.terms": "条款",
+    "footer.aff": "联盟披露",
+    "footer.force": "强制更新",
+
+    "card.shippingFallback": "运费在结算时计算",
+    "card.viewDeal": "查看优惠",
+    "card.watch": "关注",
+
+    "toast.selectCategory": "请先选择分类。",
+    "toast.noMore": "没有更多结果了。"
+  }
+};
+
+function t(key, vars = {}) {
+  const table = I18N[lang] || I18N.en;
+  let s = table[key] ?? I18N.en[key] ?? key;
+  for (const [k, v] of Object.entries(vars)) {
+    s = s.replaceAll(`{${k}}`, String(v));
+  }
+  return s;
+}
+
+function applyLanguage() {
+  document.documentElement.lang = lang;
+  document.documentElement.dir = (lang === 'ar') ? 'rtl' : 'ltr';
+
+  // text content translations (keep HTML if translation contains <b> etc.)
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    const val = t(key);
+    // Allow simple HTML in translation strings (used in cashback bullet #2)
+    if (val.includes('<')) el.innerHTML = val;
+    else el.textContent = val;
+  });
+
+  // placeholder translations
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    el.setAttribute('placeholder', t(key));
+  });
+}
+
+function localeForLang() {
+  if (lang === 'ar') return 'ar';
+  if (lang === 'fr') return 'fr-FR';
+  if (lang === 'es') return 'es-ES';
+  if (lang === 'zh') return 'zh-CN';
+  return (currency === 'SGD') ? 'en-SG' : 'en';
+}
+
 function fmt(n){
   try{
-    return new Intl.NumberFormat(currency==='SGD'?'en-SG':(lang==='ar'?'ar':'en'),{style:'currency',currency}).format(n);
+    return new Intl.NumberFormat(localeForLang(), { style:'currency', currency }).format(n);
   }catch(e){
     return Number(n).toFixed(2);
   }
 }
 
 function toast(m){
-  const t=$('#toast');
-  if(!t) return;
-  t.textContent=m;
-  t.style.display='block';
-  setTimeout(()=>t.style.display='none',2600);
+  const tEl = $('#toast');
+  if(!tEl) return;
+  tEl.textContent=m;
+  tEl.style.display='block';
+  setTimeout(()=>tEl.style.display='none',2600);
 }
 
 (function(){
@@ -258,13 +603,13 @@ function render(){
         </div>
 
         <div class="shipMeta">
-          ${item.shipping && item.shipping !== '—' ? item.shipping : 'Shipping calculated at checkout'}
+          ${item.shipping && item.shipping !== '—' ? item.shipping : t('card.shippingFallback')}
           ${item.shipTime && item.shipTime !== '—' ? ' • ' + item.shipTime : ''}
         </div>
 
         <div class="actions">
-          <a class="btn btn-primary" href="${outUrl(item)}" target="_blank" rel="sponsored nofollow noopener">View Deal</a>
-          <button class="btn watchBtn" type="button">Watch</button>
+          <a class="btn btn-primary" href="${outUrl(item)}" target="_blank" rel="sponsored nofollow noopener">${t('card.viewDeal')}</a>
+          <button class="btn watchBtn" type="button">${t('card.watch')}</button>
         </div>
       </div>`;
     grid.appendChild(card);
@@ -283,7 +628,9 @@ function render(){
   // hint
   const hint = $('#localFilterHint');
   if (hint) {
-    hint.textContent = query.trim() ? `Filtering inside: ${query}` : 'Select a category first.';
+    hint.textContent = query.trim()
+      ? t('hint.filteringInside', { q: query })
+      : t('hint.selectCategory');
   }
 }
 
@@ -316,6 +663,9 @@ async function runCategorySearch(catQuery){
 
 // BOOT
 window.addEventListener('DOMContentLoaded', async ()=>{
+  // apply language immediately on load
+  applyLanguage();
+
   // theme toggle
   $('#themeToggle')?.addEventListener('click', ()=> applyTheme( (localStorage.getItem('ps.theme')==='dark') ? 'light' : 'dark' ));
 
@@ -323,7 +673,12 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   const selLang=$('#lang');
   if(selLang){
     selLang.value=lang;
-    selLang.onchange=()=>{ lang=selLang.value; localStorage.setItem('ps.lang',lang); render(); };
+    selLang.onchange=()=>{
+      lang=selLang.value;
+      localStorage.setItem('ps.lang',lang);
+      applyLanguage();
+      render();
+    };
   }
 
   $('#currency')?.addEventListener('change',(e)=>{ currency=e.target.value; render(); });
@@ -357,7 +712,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
 
   // More results
   $('#moreBtn')?.addEventListener('click', async ()=>{
-    if (!query.trim()) { toast('Select a category first.'); return; }
+    if (!query.trim()) { toast(t('toast.selectCategory')); return; }
 
     vendorDefs.filter(v=>v.live).forEach(v => vendorPages[v.name] = (vendorPages[v.name]||1) + 1);
 
@@ -367,7 +722,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     render();
 
     if (after === before) {
-      toast('No more results.');
+      toast(t('toast.noMore'));
       const mb = $('#moreBtn');
       mb.disabled = true;
       mb.style.opacity = '.6';
