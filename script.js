@@ -723,9 +723,16 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   // FX
   await loadRates();
 
-  // Default category on load
-  const defaultCategory = "outdoor security camera";
-  const firstBtn = document.querySelector(`.catBtn[data-q="${defaultCategory}"]`);
-  setActiveCategory(firstBtn);
-  await runCategorySearch(defaultCategory);
+  // ✅ Landing page override (SEO pages set window.PS_LANDING_QUERY)
+  const landingQ = (window.PS_LANDING_QUERY || "").trim();
+
+  if (landingQ) {
+    await runCategorySearch(landingQ);
+  } else {
+    // Default category on homepage load
+    const defaultCategory = "outdoor security camera";
+    const firstBtn = document.querySelector(`.catBtn[data-q="${defaultCategory}"]`);
+    setActiveCategory(firstBtn);
+    await runCategorySearch(defaultCategory);
+  }
 });
