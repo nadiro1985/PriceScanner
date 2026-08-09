@@ -624,6 +624,51 @@ function render(){
     moreBtn.style.opacity = moreBtn.disabled ? '.6' : '1';
     moreBtn.style.pointerEvents = moreBtn.disabled ? 'none' : 'auto';
   }
+
+  renderProductSchema(data);
+}
+
+// Product/Offer structured data for the currently rendered listings (top 20)
+// so Google can show price rich snippets for these category pages.
+function renderProductSchema(data){
+  let tag = document.getElementById('product-schema');
+
+  // Skip placeholder/teaser cards (e.g. the Amazon $0 stub) — only real priced listings belong in structured data
+  const real = data.filter(item => Number(priceInSelected(item)) > 0);
+  if (!real.length) {
+    tag?.remove();
+    return;
+  }
+  if (!tag) {
+    tag = document.createElement('script');
+    tag.type = 'application/ld+json';
+    tag.id = 'product-schema';
+    document.head.appendChild(tag);
+  }
+  const items = real.slice(0, 20).map((item, i) => {
+    const p = priceInSelected(item);
+    return {
+      "@type": "ListItem",
+      "position": i + 1,
+      "item": {
+        "@type": "Product",
+        "name": item.title,
+        "image": item.image || undefined,
+        "offers": {
+          "@type": "Offer",
+          "price": Number(p).toFixed(2),
+          "priceCurrency": currency,
+          "availability": "https://schema.org/InStock",
+          "url": outUrl(item)
+        }
+      }
+    };
+  });
+  tag.textContent = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "itemListElement": items
+  });
 }
 
 // set active category UI

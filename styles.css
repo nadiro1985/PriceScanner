@@ -38,8 +38,9 @@ body{
   border-radius:18px;
   overflow:hidden;
 
-  /* Background image */
+  /* Background image (WebP with JPG fallback — see override below for browsers without image-set) */
   background: url("/hero-security.jpg") center center / cover no-repeat;
+  background: image-set(url("/hero-security.webp") type("image/webp"), url("/hero-security.jpg") type("image/jpeg")) center center / cover no-repeat;
 
   /* Ensure hero has height so image shows */
   min-height: 420px;
@@ -267,6 +268,7 @@ body{
 /* === FORCE HERO BACKGROUND IMAGE (final override) === */
 .heroWrap{
   background: url("/hero-security.jpg") center center / cover no-repeat !important;
+  background: image-set(url("/hero-security.webp") type("image/webp"), url("/hero-security.jpg") type("image/jpeg")) center center / cover no-repeat !important;
   min-height: 420px;
 }
 .heroWrap::before{
