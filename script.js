@@ -721,6 +721,9 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     }
   });
 
+  // Content-only pages (no results grid) don't need live vendor search
+  if (!$('#grid')) return;
+
   // FX
   await loadRates();  // ✅ Landing page override (SEO pages set window.PS_LANDING_QUERY)
   const landingQ = (window.PS_LANDING_QUERY || "").trim();
@@ -766,6 +769,17 @@ window.addEventListener('DOMContentLoaded', () => {
 
     form.reset();
     close();
-    toast('You\'re on the list! We\'ll email you when the price drops.');
+    toast('Saved! We\'re still building real-time email alerts — thanks for being early.');
+  });
+});
+
+// === Placeholder affiliate links (monitored-security-systems page) ===
+// These have no real destination yet — pending affiliate program approval.
+window.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('a[data-provider][href="#"]').forEach(a => {
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      toast('Link coming soon — affiliate program pending approval.');
+    });
   });
 });
