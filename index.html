@@ -133,7 +133,7 @@
 
           <div class="topControls">
             <button id="themeToggle" class="btn-icon" type="button" title="Toggle dark mode" aria-label="Toggle dark mode">🌙</button>
-            <button id="openSignup" class="btn-sm" type="button" title="Sign in / Sign up for alerts" data-i18n="auth.signin">Sign in</button>
+            <button id="openSignup" class="btn-sm" type="button" title="Get notified when prices drop" data-i18n="auth.signin">🔔 Price Alerts</button>
 
             <label id="lblLang" class="sr-only" for="lang" data-i18n="lbl.lang">Language</label>
             <select id="lang" class="select small" aria-labelledby="lblLang">
@@ -200,6 +200,13 @@
   </div>
 
   <section class="container pad-b">
+    <div class="card" style="padding:16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div>
+        <strong>Thinking about professional monitoring, not just a camera?</strong>
+        <div style="color:var(--muted);font-size:14px">Compare ADT, SimpliSafe, and Vivint monitoring plans.</div>
+      </div>
+      <a class="btn btn-primary" href="monitored-security-systems/">Compare monitoring plans →</a>
+    </div>
     <div id="grid" class="grid"></div>
     <div class="row center">
       <button id="moreBtn" class="btn" type="button" style="display:none" data-i18n="more">More results</button>
@@ -208,10 +215,27 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+  <div id="alertModalOverlay" class="modalOverlay" hidden>
+    <div class="modalBox" role="dialog" aria-modal="true" aria-labelledby="alertModalTitle">
+      <button id="alertModalClose" class="modalClose" type="button" aria-label="Close">✕</button>
+      <h2 id="alertModalTitle">🔔 Get price-drop alerts</h2>
+      <p class="modalSub">Tell us your email and what you're watching — we'll save it here and notify you once alerts go live.</p>
+      <form id="alertForm">
+        <label for="alertEmail" class="sr-only">Email</label>
+        <input id="alertEmail" class="input" type="email" required placeholder="you@example.com" autocomplete="email">
+        <label for="alertQuery" class="sr-only">Product or category</label>
+        <input id="alertQuery" class="input" type="text" placeholder="e.g. outdoor security camera">
+        <button class="btn btn-primary" type="submit">Notify me</button>
+      </form>
+      <p class="modalNote">Saved on this device for now while we finish building real-time alerts. No spam, ever.</p>
+    </div>
+  </div>
+
   <footer class="footer">
     <div class="container footerInner" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
       <div>© <span id="year"></span> <span id="brandFooter">PriceScanner</span></div>
       <div class="footerRight">
+        <a href="about.html" rel="nofollow">About</a>
         <a href="admin.html" data-i18n="footer.admin">Admin</a>
         <a href="privacy.html" rel="nofollow" data-i18n="footer.privacy">Privacy</a>
         <a href="terms.html" rel="nofollow" data-i18n="footer.terms">Terms</a>

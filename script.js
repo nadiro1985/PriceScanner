@@ -59,7 +59,7 @@ const I18N = {
     "cash.li4": "Redeem as cash or apply it to your next payment.",
     "cash.note": "Sign up and payout options will be added here later.",
 
-    "auth.signin": "Sign in",
+    "auth.signin": "🔔 Price Alerts",
     "lbl.lang": "Language",
     "lbl.currency": "Currency",
 
@@ -120,7 +120,7 @@ const I18N = {
     "cash.li4": "اسحب المبلغ نقدًا أو استخدمه في دفعتك القادمة.",
     "cash.note": "سيتم إضافة خيارات التسجيل والسحب لاحقًا.",
 
-    "auth.signin": "تسجيل الدخول",
+    "auth.signin": "🔔 تنبيهات الأسعار",
     "lbl.lang": "اللغة",
     "lbl.currency": "العملة",
 
@@ -181,7 +181,7 @@ const I18N = {
     "cash.li4": "Retirez en espèces ou appliquez au prochain paiement.",
     "cash.note": "L’inscription et les options de paiement seront ajoutées plus tard.",
 
-    "auth.signin": "Se connecter",
+    "auth.signin": "🔔 Alertes de prix",
     "lbl.lang": "Langue",
     "lbl.currency": "Devise",
 
@@ -242,7 +242,7 @@ const I18N = {
     "cash.li4": "Retira en efectivo o aplícalo a tu próximo pago.",
     "cash.note": "El registro y las opciones de cobro se agregarán más adelante.",
 
-    "auth.signin": "Iniciar sesión",
+    "auth.signin": "🔔 Alertas de precio",
     "lbl.lang": "Idioma",
     "lbl.currency": "Moneda",
 
@@ -303,7 +303,7 @@ const I18N = {
     "cash.li4": "可提现吗或用于下次付款。",
     "cash.note": "注册与提现方式会在后续加入。",
 
-    "auth.signin": "登录",
+    "auth.signin": "🔔 降价提醒",
     "lbl.lang": "语言",
     "lbl.currency": "货币",
 
@@ -721,6 +721,9 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     }
   });
 
+  // Content-only pages (no results grid) don't need live vendor search
+  if (!$('#grid')) return;
+
   // FX
   await loadRates();  // ✅ Landing page override (SEO pages set window.PS_LANDING_QUERY)
   const landingQ = (window.PS_LANDING_QUERY || "").trim();
@@ -734,4 +737,49 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     setActiveCategory(firstBtn);
     await runCategorySearch(defaultCategory);
   }
+});
+
+// === Price-drop alert signup ===
+// Front-end only for now (no Worker endpoint yet) — stores signups locally
+// and marks them for sync once the alerts API is wired up.
+window.addEventListener('DOMContentLoaded', () => {
+  const overlay = document.getElementById('alertModalOverlay');
+  const openBtn = document.getElementById('openSignup');
+  const closeBtn = document.getElementById('alertModalClose');
+  const form = document.getElementById('alertForm');
+  if (!overlay || !openBtn || !form) return;
+
+  const open = () => { overlay.hidden = false; document.getElementById('alertEmail')?.focus(); };
+  const close = () => { overlay.hidden = true; };
+
+  openBtn.addEventListener('click', open);
+  closeBtn?.addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !overlay.hidden) close(); });
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const email = document.getElementById('alertEmail').value.trim();
+    const watch = document.getElementById('alertQuery').value.trim() || query || '';
+    if (!email) return;
+
+    const list = JSON.parse(localStorage.getItem('ps.alertSignups') || '[]');
+    list.push({ email, watch, at: Date.now(), synced: false });
+    localStorage.setItem('ps.alertSignups', JSON.stringify(list));
+
+    form.reset();
+    close();
+    toast('Saved! We\'re still building real-time email alerts — thanks for being early.');
+  });
+});
+
+// === Placeholder affiliate links (monitored-security-systems page) ===
+// These have no real destination yet — pending affiliate program approval.
+window.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('a[data-provider][href="#"]').forEach(a => {
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      toast('Link coming soon — affiliate program pending approval.');
+    });
+  });
 });
