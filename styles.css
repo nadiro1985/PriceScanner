@@ -186,6 +186,16 @@ body{
   z-index:40;
 }
 
+/* Price alert modal */
+.modalOverlay{position:fixed;inset:0;background:rgba(0,0,0,.5);align-items:center;justify-content:center;z-index:100;padding:16px;display:none}
+.modalOverlay:not([hidden]){display:flex}
+.modalBox{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);max-width:420px;width:100%;padding:24px}
+.modalClose{position:absolute;top:10px;right:10px;background:transparent;border:none;font-size:16px;cursor:pointer;color:var(--muted)}
+.modalBox h2{margin:0 0 6px;font-size:20px}
+.modalSub{color:var(--muted);font-size:14px;margin:0 0 14px}
+#alertForm{display:grid;gap:10px}
+.modalNote{color:var(--muted);font-size:12px;margin:10px 0 0}
+
 /* Footer */
 .footer{padding:18px 0;border-top:1px solid var(--border);background:var(--surface)}
 .footerInner{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
