@@ -772,7 +772,9 @@ window.addEventListener('DOMContentLoaded', async ()=>{
 
   // FX
   await loadRates();  // ✅ Landing page override (SEO pages set window.PS_LANDING_QUERY)
-  const landingQ = (window.PS_LANDING_QUERY || "").trim();
+  // ?q= support backs the WebSite/SearchAction structured data on the homepage
+  const urlQ = new URLSearchParams(location.search).get('q');
+  const landingQ = (window.PS_LANDING_QUERY || urlQ || "").trim();
 
   if (landingQ) {
     await runCategorySearch(landingQ);
