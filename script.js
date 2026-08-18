@@ -15,7 +15,8 @@ const PLACEHOLDER_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
 const vendorDefs = [
   { name: "AliExpress", slug: "aliexpress", live: true },
   { name: "Amazon", slug: "amazon", live: true },
-  { name: "eBay", slug: "ebay", live: true }
+  { name: "eBay", slug: "ebay", live: true },
+  { name: "Shopee", slug: "shopee", live: true }
 ];
 
 const LIVE_VENDORS = vendorDefs.map(v => v.name);
@@ -23,7 +24,7 @@ let enabled = [...LIVE_VENDORS];
 
 // paging
 const vendorPages  = Object.fromEntries(vendorDefs.map(v => [v.name, 1]));
-const vendorLimits = { "AliExpress": 40, "eBay": 50, "Amazon": 20 };
+const vendorLimits = { "AliExpress": 40, "eBay": 50, "Amazon": 20, "Shopee": 40 };
 
 // UI state
 let currency    = "SGD";
