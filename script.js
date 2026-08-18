@@ -1,5 +1,5 @@
 // === CONFIG / STATE ===
-const WORKER_BASE = "https://pricescanner.b48rptrywg.workers.dev";
+const WORKER_BASE = "https://api.thepricescanner.com";
 const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
 const PLACEHOLDER_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="450" viewBox="0 0 600 450">
