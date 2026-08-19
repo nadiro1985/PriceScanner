@@ -147,7 +147,7 @@ body{
 .select{background:var(--surface)}
 
 .storeFilterRow{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:10px}
-.storeToggle{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:700;cursor:pointer;user-select:none}
+.storeToggle{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:700;cursor:pointer;user-select:none;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.4)}
 .storeToggle input{cursor:pointer}
 
 /* GRID / CARDS */
