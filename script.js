@@ -25,7 +25,7 @@ let enabled = [...LIVE_VENDORS];
 
 // paging
 const vendorPages  = Object.fromEntries(vendorDefs.map(v => [v.name, 1]));
-const vendorLimits = { "AliExpress": 40, "eBay": 50, "Amazon": 20, "Shopee": 40, "Etsy": 24 };
+const vendorLimits = { "AliExpress": 40, "eBay": 50, "Amazon": 20, "Shopee": 40, "Etsy": 16 };
 
 // UI state
 let currency    = "SGD";
