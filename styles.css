@@ -146,6 +146,10 @@ body{
 .budget .dash{opacity:.6}
 .select{background:var(--surface)}
 
+.storeFilterRow{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.storeToggle{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:700;cursor:pointer;user-select:none}
+.storeToggle input{cursor:pointer}
+
 /* GRID / CARDS */
 .grid{
   display:grid;

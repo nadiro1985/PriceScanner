@@ -541,7 +541,7 @@ async function loadAll({append=false}={}){
 
 function currentResults(){
   let base = [];
-  for (const v of LIVE_VENDORS) base = base.concat(offersByVendor[v]||[]);
+  for (const v of LIVE_VENDORS) { if (enabled.includes(v)) base = base.concat(offersByVendor[v]||[]); }
 
   // local keyword filter (NO network)
   if (localFilterText.trim()) {
@@ -737,6 +737,24 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     localFilterText = e.target.value || '';
     render();
   });
+
+  // store filters (enable/disable individual vendors; filters already-loaded results, no re-fetch)
+  const storeRow = $('#storeFilterRow');
+  if (storeRow) {
+    storeRow.innerHTML = vendorDefs.map(v => `
+      <label class="storeToggle">
+        <input type="checkbox" data-vendor="${v.name}" checked>
+        <span>${v.name}</span>
+      </label>`).join('');
+    storeRow.addEventListener('change', (e)=>{
+      const cb = e.target.closest('input[data-vendor]');
+      if (!cb) return;
+      const vendor = cb.getAttribute('data-vendor');
+      if (cb.checked) { if (!enabled.includes(vendor)) enabled.push(vendor); }
+      else { enabled = enabled.filter(v => v !== vendor); }
+      render();
+    });
+  }
 
   // category buttons
   document.querySelectorAll('.catBtn').forEach(btn=>{
