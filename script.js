@@ -596,7 +596,7 @@ function render(){
       </div>
       <div class="cardBody">
         <h3 class="title clamp-2" style="color:#146EB4;font-weight:800">${item.title}</h3>
-        <div class="price">${fmt(p)}</div>
+        <div class="price">${p > 0 ? fmt(p) : 'See price on ' + item.vendor}</div>
 
         <div class="metaRow">
           <span class="badge vendor" data-vendor="${item.vendor}">${item.vendor}</span>
