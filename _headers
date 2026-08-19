@@ -1,0 +1,20 @@
+/script.js
+  Cache-Control: public, max-age=31536000, immutable
+
+/styles.css
+  Cache-Control: public, max-age=31536000, immutable
+
+/logo-new.png
+  Cache-Control: public, max-age=31536000, immutable
+
+/logo.svg
+  Cache-Control: public, max-age=31536000, immutable
+
+/hero-security.jpg
+  Cache-Control: public, max-age=2592000
+
+/hero-security.webp
+  Cache-Control: public, max-age=2592000
+
+/icons/*
+  Cache-Control: public, max-age=2592000
