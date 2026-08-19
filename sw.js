@@ -1,5 +1,9 @@
 // ----- Version & cache names -----
-const VERSION = 'v2';
+// Bump this on every deploy that changes cached files -- it's what forces
+// clients to drop old caches and fetch fresh content (see incident: this
+// stayed at 'v2' for the site's whole life, so returning visitors kept
+// getting stale script.js/styles.css indefinitely).
+const VERSION = 'v3';
 const STATIC_CACHE = `ps-static-${VERSION}`;
 const RUNTIME_CACHE = `ps-runtime-${VERSION}`;
 
@@ -7,8 +11,8 @@ const RUNTIME_CACHE = `ps-runtime-${VERSION}`;
 const PRECACHE = [
   '/',                    // homepage
   '/index.html',
-  '/styles.css?v=61',
-  '/script.js?v=61',
+  '/styles.css?v=73',
+  '/script.js?v=66',
   '/logo.svg',
   '/icons/icon-180.png',
   '/icons/icon-192.png',
